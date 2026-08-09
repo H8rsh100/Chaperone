@@ -20,7 +20,6 @@ type AuditEntry = {
   at: string
   score: number
   decidedBy?: 'auto' | 'human'
-  live?: boolean
 }
 
 type LivePending = {
@@ -40,8 +39,7 @@ export function Checkpoint({ onBack }: Props) {
   const [livePending, setLivePending] = useState<LivePending[]>([])
   const [activeId, setActiveId] = useState('')
   const [audit, setAudit] = useState<AuditEntry[]>([])
-  const [flash, setFlash] = useState<Decision | null>(null)
-  const [runStatus, setRunStatus] = useState('Ready')
+  const [runStatus, setRunStatus] = useState('')
   const [busy, setBusy] = useState(false)
 
   const activeLive = livePending.find((p) => p.call.id === activeId) ?? livePending[0]
@@ -83,7 +81,6 @@ export function Checkpoint({ onBack }: Props) {
             at: String(a.timestamp ?? '').slice(11, 19),
             score: Number(a.riskScore ?? 0),
             decidedBy: (a.decidedBy as 'auto' | 'human') ?? 'auto',
-            live: true,
           })),
       )
     }
@@ -92,16 +89,12 @@ export function Checkpoint({ onBack }: Props) {
   useEffect(() => {
     if (mode !== 'live') return
     void refreshLive()
-    const t = window.setInterval(() => {
-      void refreshLive()
-    }, 800)
+    const t = window.setInterval(() => void refreshLive(), 800)
     return () => window.clearInterval(t)
   }, [mode, refreshLive])
 
   const decide = async (decision: Decision) => {
     if (!active || !verdict) return
-    setFlash(decision)
-    window.setTimeout(() => setFlash(null), 450)
 
     if (mode === 'live' && activeLive) {
       await fetch('/api/chaperone/decide', {
@@ -143,7 +136,7 @@ export function Checkpoint({ onBack }: Props) {
     setQueue(SCENARIOS)
     setActiveId(SCENARIOS[0].id)
     setAudit([])
-    setRunStatus('Offline pack')
+    setRunStatus('Offline scenarios')
   }
 
   const startLive = async (
@@ -160,153 +153,142 @@ export function Checkpoint({ onBack }: Props) {
       body: JSON.stringify({ scenario, useLiveModel: false }),
     })
     const data = await res.json()
-    setRunStatus(data.started ? `${data.mode}` : `Failed`)
+    setRunStatus(data.started ? 'Live' : 'Failed')
     setBusy(false)
     await refreshLive()
   }
 
-  const tickets =
+  const pendingList =
     mode === 'live'
       ? livePending.map((p) => ({
           id: p.call.id,
-          label: p.call.toolName,
-          sum: p.toolCall.summary,
-          meta: p.verdict.level,
+          label: p.toolCall.summary,
+          level: p.verdict.level,
         }))
       : queue.map((c) => ({
           id: c.id,
-          label: c.tool,
-          sum: c.summary,
-          meta: c.agent,
+          label: c.summary,
+          level: inspect(c).level,
         }))
 
   return (
-    <section
-      className={
-        flash === 'denied'
-          ? 'booth booth--denied'
-          : flash === 'approved'
-            ? 'booth booth--approved'
-            : 'booth'
-      }
-      aria-label="Agent checkpoint"
-    >
-      <header className="booth__bar">
-        <button type="button" className="booth__back" onClick={onBack}>
-          Back
+    <section className="gate" aria-label="Agent checkpoint">
+      <header className="gate__nav">
+        <button type="button" className="gate__back" onClick={onBack}>
+          ← Home
         </button>
-        <button type="button" className="booth__brand" onClick={onBack}>
-          Chaperone
-        </button>
-        <div className="booth__runs">
+        <div className="gate__demos">
           <button type="button" disabled={busy} onClick={() => void startLive('destructive')}>
-            Break things
+            Destructive
           </button>
           <button type="button" disabled={busy} onClick={() => void startLive('benign-http')}>
-            Safe fetch
+            Benign HTTP
           </button>
           <button type="button" disabled={busy} onClick={() => void startLive('borderline')}>
-            Needs you
+            Review
           </button>
           <button type="button" disabled={busy} onClick={() => void startLive('all')}>
             All three
           </button>
-          <button type="button" onClick={loadScenarios}>
-            Offline
-          </button>
+          <button type="button" onClick={loadScenarios}>Offline</button>
         </div>
-        <span className="booth__status">{runStatus}</span>
+        {runStatus && <span className="gate__status">{runStatus}</span>}
       </header>
 
-      <div className="booth__tickets" aria-label="Queue">
-        {tickets.length === 0 ? (
-          <p className="booth__empty">No ticket in the lane. Fire a demo above.</p>
-        ) : (
-          tickets.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className={
-                t.id === (activeLive?.call.id ?? active?.id)
-                  ? 'booth__ticket booth__ticket--on'
-                  : 'booth__ticket'
-              }
-              onClick={() => setActiveId(t.id)}
-            >
-              <span>{t.label}</span>
-              <strong>{t.sum}</strong>
-              <em>{t.meta}</em>
-            </button>
-          ))
+      <div className="gate__body">
+        {pendingList.length > 1 && (
+          <nav className="gate__queue" aria-label="Pending reviews">
+            {pendingList.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={
+                  p.id === (activeLive?.call.id ?? active?.id)
+                    ? 'gate__queue-item gate__queue-item--on'
+                    : 'gate__queue-item'
+                }
+                onClick={() => setActiveId(p.id)}
+              >
+                {p.label.slice(0, 48)}
+                <span>{p.level}</span>
+              </button>
+            ))}
+          </nav>
         )}
-      </div>
 
-      <div className="booth__stage">
         {active && verdict ? (
-          <>
-            <div className="booth__meta">
-              <span>{active.agent}</span>
-              <span>{active.tool}</span>
-              <span className={`booth__risk booth__risk--${verdict.level}`}>
-                {verdict.level} · {verdict.score}
-              </span>
-            </div>
-            <h2 className="booth__sum">{active.summary}</h2>
-            <p className="booth__headline">{verdict.headline}</p>
-            <pre className="booth__payload">{active.payload}</pre>
+          <article className="gate__notice">
+            <header className="gate__notice-head">
+              <p className="gate__notice-kicker">Intercept notice</p>
+              <div className="gate__notice-meta">
+                <span>{active.agent}</span>
+                <span>{active.tool}</span>
+                <span className={`gate__risk gate__risk--${verdict.level}`}>
+                  {verdict.level} · {verdict.score}
+                </span>
+              </div>
+            </header>
+
+            <h2 className="gate__summary">{active.summary}</h2>
+            <p className="gate__verdict-line">{verdict.headline}</p>
+
+            <pre className="gate__payload">{active.payload}</pre>
+
             {verdict.findings.length > 0 && (
-              <ul className="booth__findings">
+              <ol className="gate__findings">
                 {verdict.findings.map((f) => (
                   <li key={f.id}>
-                    <strong>{f.title}</strong> {f.detail}
+                    <strong>{f.title}</strong>
+                    <span>{f.detail}</span>
                   </li>
                 ))}
-              </ul>
+              </ol>
             )}
-          </>
+
+            <div className="gate__actions">
+              <button
+                type="button"
+                className="gate__deny"
+                onClick={() => void decide('denied')}
+              >
+                Deny
+              </button>
+              <button
+                type="button"
+                className="gate__allow"
+                onClick={() => void decide('approved')}
+              >
+                Allow and execute
+              </button>
+            </div>
+          </article>
         ) : (
-          <div className="booth__idle">
-            <h2>Nothing to judge yet</h2>
-            <p>Hit All three. Watch deny, allow, and review hit the same gate.</p>
+          <div className="gate__empty">
+            <h2>No intercept active</h2>
+            <p>Run a demo above. Destructive auto-denies. Review waits on you.</p>
+            <button type="button" className="gate__allow" onClick={() => void startLive('all')}>
+              Run all three
+            </button>
           </div>
         )}
-      </div>
 
-      <div className="booth__paddles">
-        <button
-          type="button"
-          className="booth__deny"
-          disabled={!active}
-          onClick={() => void decide('denied')}
-        >
-          DENY
-        </button>
-        <button
-          type="button"
-          className="booth__allow"
-          disabled={!active}
-          onClick={() => void decide('approved')}
-        >
-          ALLOW
-        </button>
-      </div>
-
-      <footer className="booth__audit">
-        {audit.length === 0 ? (
-          <span>Audit empty</span>
-        ) : (
-          audit.slice(0, 8).map((e) => (
-            <span
-              key={e.id}
-              className={
-                e.decision === 'denied' ? 'booth__chip booth__chip--deny' : 'booth__chip booth__chip--allow'
-              }
-            >
-              {e.decision} · {e.call.summary.slice(0, 42)}
-            </span>
-          ))
+        {audit.length > 0 && (
+          <aside className="gate__audit" aria-label="Recent decisions">
+            {audit.slice(0, 6).map((e) => (
+              <div
+                key={e.id}
+                className={
+                  e.decision === 'denied' ? 'gate__audit-row gate__audit-row--deny' : 'gate__audit-row'
+                }
+              >
+                <span>{e.decision}</span>
+                <span>{e.call.summary}</span>
+                <span>{e.at}</span>
+              </div>
+            ))}
+          </aside>
         )}
-      </footer>
+      </div>
     </section>
   )
 }

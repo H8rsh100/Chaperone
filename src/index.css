@@ -1,15 +1,16 @@
 :root {
-  --bg: #f3f1ec;
-  --ink: #141414;
-  --mute: #5c5c5c;
-  --line: #141414;
-  --deny: #c1121f;
-  --allow: #0f6b4c;
-  --paper: #fffcf7;
-  --font-brand: 'Dela Gothic One', sans-serif;
-  --font-body: 'IBM Plex Sans', sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
-  color-scheme: light;
+  --bg: #0c0c0c;
+  --surface: #161616;
+  --surface-2: #1e1e1e;
+  --ink: #f0ebe3;
+  --mute: #8a8580;
+  --line: rgba(240, 235, 227, 0.12);
+  --deny: #e85d4c;
+  --allow: #4cb88a;
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-ui: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  color-scheme: dark;
 }
 
 *,
@@ -26,19 +27,17 @@ body,
 }
 
 body {
-  font-family: var(--font-body);
+  font-family: var(--font-ui);
   background: var(--bg);
   color: var(--ink);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
-button,
-input {
+button {
   font: inherit;
 }
 
 ::selection {
-  background: #141414;
-  color: #fffcf7;
+  background: rgba(240, 235, 227, 0.2);
 }
