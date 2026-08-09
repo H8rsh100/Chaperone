@@ -41,7 +41,7 @@ export function Checkpoint({ onBack }: Props) {
   const [activeId, setActiveId] = useState('')
   const [audit, setAudit] = useState<AuditEntry[]>([])
   const [flash, setFlash] = useState<Decision | null>(null)
-  const [runStatus, setRunStatus] = useState('Idle')
+  const [runStatus, setRunStatus] = useState('Ready')
   const [busy, setBusy] = useState(false)
 
   const activeLive = livePending.find((p) => p.call.id === activeId) ?? livePending[0]
@@ -63,8 +63,8 @@ export function Checkpoint({ onBack }: Props) {
       setActiveId(data.pending[0].call.id)
     }
     if (data.audit?.length) {
-      setAudit((prev) => {
-        const mapped: AuditEntry[] = data.audit
+      setAudit(
+        data.audit
           .filter((a) => a.toolName && a.toolName !== '(run)')
           .map((a, i) => ({
             id: String(a.id ?? `a-${i}`),
@@ -84,10 +84,8 @@ export function Checkpoint({ onBack }: Props) {
             score: Number(a.riskScore ?? 0),
             decidedBy: (a.decidedBy as 'auto' | 'human') ?? 'auto',
             live: true,
-          }))
-        // Prefer live audits when in live mode
-        return mapped.length ? mapped : prev
-      })
+          })),
+      )
     }
   }, [activeId])
 
@@ -103,7 +101,7 @@ export function Checkpoint({ onBack }: Props) {
   const decide = async (decision: Decision) => {
     if (!active || !verdict) return
     setFlash(decision)
-    window.setTimeout(() => setFlash(null), 550)
+    window.setTimeout(() => setFlash(null), 450)
 
     if (mode === 'live' && activeLive) {
       await fetch('/api/chaperone/decide', {
@@ -145,7 +143,7 @@ export function Checkpoint({ onBack }: Props) {
     setQueue(SCENARIOS)
     setActiveId(SCENARIOS[0].id)
     setAudit([])
-    setRunStatus('Scenario pack loaded')
+    setRunStatus('Offline pack')
   }
 
   const startLive = async (
@@ -153,7 +151,7 @@ export function Checkpoint({ onBack }: Props) {
   ) => {
     setMode('live')
     setBusy(true)
-    setRunStatus(`Starting ${scenario}...`)
+    setRunStatus(`Running ${scenario}`)
     setAudit([])
     await fetch('/api/chaperone/reset', { method: 'POST' })
     const res = await fetch('/api/chaperone/run', {
@@ -162,242 +160,153 @@ export function Checkpoint({ onBack }: Props) {
       body: JSON.stringify({ scenario, useLiveModel: false }),
     })
     const data = await res.json()
-    setRunStatus(
-      data.started
-        ? `Live intercept running (${data.mode}). Deny blocks real execution.`
-        : `Failed: ${data.error ?? 'unknown'}`,
-    )
+    setRunStatus(data.started ? `${data.mode}` : `Failed`)
     setBusy(false)
     await refreshLive()
   }
 
-  const queueCount = mode === 'live' ? livePending.length : queue.length
+  const tickets =
+    mode === 'live'
+      ? livePending.map((p) => ({
+          id: p.call.id,
+          label: p.call.toolName,
+          sum: p.toolCall.summary,
+          meta: p.verdict.level,
+        }))
+      : queue.map((c) => ({
+          id: c.id,
+          label: c.tool,
+          sum: c.summary,
+          meta: c.agent,
+        }))
 
   return (
     <section
-      className={flash ? `check check--flash-${flash}` : 'check'}
+      className={
+        flash === 'denied'
+          ? 'booth booth--denied'
+          : flash === 'approved'
+            ? 'booth booth--approved'
+            : 'booth'
+      }
       aria-label="Agent checkpoint"
     >
-      <header className="check__top">
-        <button type="button" className="check__brand" onClick={onBack}>
+      <header className="booth__bar">
+        <button type="button" className="booth__back" onClick={onBack}>
+          Back
+        </button>
+        <button type="button" className="booth__brand" onClick={onBack}>
           Chaperone
         </button>
-        <p className="check__plain">
-          Live intercept: tool calls hit inspect.ts before they run.
-        </p>
-        <div className="check__status">
-          <span className="check__dot" />
-          {queueCount} waiting
+        <div className="booth__runs">
+          <button type="button" disabled={busy} onClick={() => void startLive('destructive')}>
+            Break things
+          </button>
+          <button type="button" disabled={busy} onClick={() => void startLive('benign-http')}>
+            Safe fetch
+          </button>
+          <button type="button" disabled={busy} onClick={() => void startLive('borderline')}>
+            Needs you
+          </button>
+          <button type="button" disabled={busy} onClick={() => void startLive('all')}>
+            All three
+          </button>
+          <button type="button" onClick={loadScenarios}>
+            Offline
+          </button>
         </div>
+        <span className="booth__status">{runStatus}</span>
       </header>
 
-      <div className="check__livebar">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void startLive('destructive')}
-        >
-          Demo: destructive
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void startLive('benign-http')}
-        >
-          Demo: benign HTTP
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void startLive('borderline')}
-        >
-          Demo: needs review
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void startLive('all')}
-        >
-          Run all three
-        </button>
-        <button type="button" onClick={loadScenarios}>
-          Offline scenarios
-        </button>
-        <span className="check__runstatus">{runStatus}</span>
+      <div className="booth__tickets" aria-label="Queue">
+        {tickets.length === 0 ? (
+          <p className="booth__empty">No ticket in the lane. Fire a demo above.</p>
+        ) : (
+          tickets.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className={
+                t.id === (activeLive?.call.id ?? active?.id)
+                  ? 'booth__ticket booth__ticket--on'
+                  : 'booth__ticket'
+              }
+              onClick={() => setActiveId(t.id)}
+            >
+              <span>{t.label}</span>
+              <strong>{t.sum}</strong>
+              <em>{t.meta}</em>
+            </button>
+          ))
+        )}
       </div>
 
-      <div className="check__layout">
-        <aside className="check__queue">
-          <p className="check__label">
-            {mode === 'live' ? 'Live review queue' : 'Inbound tool calls'}
-          </p>
-          {queueCount === 0 ? (
-            <p className="check__empty">
-              {mode === 'live'
-                ? 'No human review pending. Auto allow/deny still write the audit trail.'
-                : 'Queue clear. Policy held.'}
-            </p>
-          ) : mode === 'live' ? (
-            <ul>
-              {livePending.map((p) => (
-                <li key={p.call.id}>
-                  <button
-                    type="button"
-                    className={
-                      p.call.id === activeLive?.call.id
-                        ? 'check__item check__item--active'
-                        : 'check__item'
-                    }
-                    onClick={() => setActiveId(p.call.id)}
-                  >
-                    <span className="check__item-tool">{p.call.toolName}</span>
-                    <span className="check__item-sum">{p.toolCall.summary}</span>
-                    <span className="check__item-meta">
-                      live · {p.verdict.level} · {p.createdAt.slice(11, 19)}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <ul>
-              {queue.map((c) => (
-                <li key={c.id}>
-                  <button
-                    type="button"
-                    className={
-                      c.id === active?.id
-                        ? 'check__item check__item--active'
-                        : 'check__item'
-                    }
-                    onClick={() => setActiveId(c.id)}
-                  >
-                    <span className="check__item-tool">{c.tool}</span>
-                    <span className="check__item-sum">{c.summary}</span>
-                    <span className="check__item-meta">
-                      {c.agent} · {c.requestedAt}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside>
-
-        <div className="check__stage">
-          {active && verdict ? (
-            <>
-              <div className="check__inspect">
-                <div className="check__inspect-head">
-                  <div>
-                    <p className="check__label">Now inspecting</p>
-                    <h2>{active.summary}</h2>
-                    <p className="check__agent">
-                      {active.agent} · tool <code>{active.tool}</code>
-                      {mode === 'live' ? ' · LIVE GATE' : ''}
-                    </p>
-                  </div>
-                  <div
-                    className={`check__score check__score--${verdict.level}`}
-                    aria-label={`Risk score ${verdict.score}`}
-                  >
-                    <span>Risk</span>
-                    <strong>{verdict.score}</strong>
-                    <em>{verdict.level}</em>
-                  </div>
-                </div>
-
-                <div className="check__gate-visual" aria-hidden>
-                  <div className={`check__bars check__bars--${verdict.level}`}>
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-                  <p className="check__headline">{verdict.headline}</p>
-                </div>
-
-                <pre className="check__payload">{active.payload}</pre>
-
-                <div className="check__findings">
-                  <p className="check__label">Findings</p>
-                  {verdict.findings.length === 0 ? (
-                    <p className="check__ok">No policy hits. Residual noise only.</p>
-                  ) : (
-                    <ul>
-                      {verdict.findings.map((f) => (
-                        <li key={f.id}>
-                          <strong>{f.title}</strong>
-                          <span>{f.detail}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-
-              <div className="check__actions">
-                <button
-                  type="button"
-                  className="check__deny"
-                  onClick={() => void decide('denied')}
-                >
-                  Deny
-                </button>
-                <button
-                  type="button"
-                  className="check__allow"
-                  onClick={() => void decide('approved')}
-                >
-                  Approve & execute
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="check__clear">
-              <h2>{mode === 'live' ? 'Start a live intercept' : 'Checkpoint clear'}</h2>
-              <p>
-                {mode === 'live'
-                  ? 'Run destructive, benign HTTP, or needs-review. Auto-deny never executes. Review waits for your click.'
-                  : 'All inbound agent actions were adjudicated.'}
-              </p>
-              <button
-                type="button"
-                className="check__allow"
-                onClick={() => void startLive('all')}
-              >
-                Run acceptance trio
-              </button>
+      <div className="booth__stage">
+        {active && verdict ? (
+          <>
+            <div className="booth__meta">
+              <span>{active.agent}</span>
+              <span>{active.tool}</span>
+              <span className={`booth__risk booth__risk--${verdict.level}`}>
+                {verdict.level} · {verdict.score}
+              </span>
             </div>
-          )}
-        </div>
-
-        <aside className="check__audit">
-          <p className="check__label">Audit trail</p>
-          {audit.length === 0 ? (
-            <p className="check__empty">Decisions land here.</p>
-          ) : (
-            <ul>
-              {audit.map((e) => (
-                <li
-                  key={e.id}
-                  className={`check__audit-row check__audit-row--${e.decision}`}
-                >
-                  <span>
-                    {e.decision}
-                    {e.decidedBy ? ` · ${e.decidedBy}` : ''}
-                  </span>
-                  <strong>{e.call.summary}</strong>
-                  <em>
-                    score {e.score} · {e.at}
-                  </em>
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside>
+            <h2 className="booth__sum">{active.summary}</h2>
+            <p className="booth__headline">{verdict.headline}</p>
+            <pre className="booth__payload">{active.payload}</pre>
+            {verdict.findings.length > 0 && (
+              <ul className="booth__findings">
+                {verdict.findings.map((f) => (
+                  <li key={f.id}>
+                    <strong>{f.title}</strong> {f.detail}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        ) : (
+          <div className="booth__idle">
+            <h2>Nothing to judge yet</h2>
+            <p>Hit All three. Watch deny, allow, and review hit the same gate.</p>
+          </div>
+        )}
       </div>
+
+      <div className="booth__paddles">
+        <button
+          type="button"
+          className="booth__deny"
+          disabled={!active}
+          onClick={() => void decide('denied')}
+        >
+          DENY
+        </button>
+        <button
+          type="button"
+          className="booth__allow"
+          disabled={!active}
+          onClick={() => void decide('approved')}
+        >
+          ALLOW
+        </button>
+      </div>
+
+      <footer className="booth__audit">
+        {audit.length === 0 ? (
+          <span>Audit empty</span>
+        ) : (
+          audit.slice(0, 8).map((e) => (
+            <span
+              key={e.id}
+              className={
+                e.decision === 'denied' ? 'booth__chip booth__chip--deny' : 'booth__chip booth__chip--allow'
+              }
+            >
+              {e.decision} · {e.call.summary.slice(0, 42)}
+            </span>
+          ))
+        )}
+      </footer>
     </section>
   )
 }
