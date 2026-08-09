@@ -23,13 +23,13 @@ export function Atmosphere() {
       canvas.style.height = `${h}px`
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       nodes.length = 0
-      const count = Math.floor((w * h) / 28000)
+      const count = Math.floor((w * h) / 52000)
       for (let i = 0; i < count; i++) {
         nodes.push({
           x: Math.random() * w,
           y: Math.random() * h,
-          vx: (Math.random() - 0.5) * 0.25,
-          vy: (Math.random() - 0.5) * 0.25,
+          vx: (Math.random() - 0.5) * 0.12,
+          vy: (Math.random() - 0.5) * 0.12,
         })
       }
     }
@@ -77,8 +77,8 @@ export function Atmosphere() {
           const dx = a.x - b.x
           const dy = a.y - b.y
           const dist = Math.hypot(dx, dy)
-          if (dist < 140) {
-            ctx.strokeStyle = `rgba(230, 162, 60, ${0.12 * (1 - dist / 140)})`
+          if (dist < 100) {
+            ctx.strokeStyle = `rgba(154, 167, 181, ${0.08 * (1 - dist / 100)})`
             ctx.beginPath()
             ctx.moveTo(a.x, a.y)
             ctx.lineTo(b.x, b.y)
