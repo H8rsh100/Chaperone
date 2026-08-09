@@ -73,9 +73,12 @@ export function Checkpoint({ onBack }: Props) {
         <button type="button" className="check__brand" onClick={onBack}>
           Chaperone
         </button>
+        <p className="check__plain">
+          Agent asks to run something. You approve or kill it.
+        </p>
         <div className="check__status">
           <span className="check__dot" />
-          Gate live · {queue.length} pending
+          {queue.length} waiting
         </div>
         <button type="button" className="check__reset" onClick={reset}>
           Reset queue
