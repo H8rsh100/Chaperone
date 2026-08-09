@@ -1,16 +1,12 @@
 :root {
-  --bg: #0c0c0c;
-  --surface: #161616;
-  --surface-2: #1e1e1e;
-  --ink: #f0ebe3;
-  --mute: #8a8580;
-  --line: rgba(240, 235, 227, 0.12);
-  --deny: #e85d4c;
-  --allow: #4cb88a;
-  --font-display: 'Instrument Serif', Georgia, serif;
-  --font-ui: 'DM Sans', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
-  color-scheme: dark;
+  --bg: #ffffff;
+  --ink: #000000;
+  --mute: #333333;
+  --deny: #ff0000;
+  --allow: #000000;
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, monospace;
+  color-scheme: light;
 }
 
 *,
@@ -27,7 +23,7 @@ body,
 }
 
 body {
-  font-family: var(--font-ui);
+  font-family: var(--font-mono);
   background: var(--bg);
   color: var(--ink);
   overflow-x: hidden;
@@ -36,8 +32,10 @@ body {
 
 button {
   font: inherit;
+  cursor: pointer;
 }
 
 ::selection {
-  background: rgba(240, 235, 227, 0.2);
+  background: #000;
+  color: #fff;
 }

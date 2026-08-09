@@ -39,7 +39,6 @@ export function Checkpoint({ onBack }: Props) {
   const [livePending, setLivePending] = useState<LivePending[]>([])
   const [activeId, setActiveId] = useState('')
   const [audit, setAudit] = useState<AuditEntry[]>([])
-  const [runStatus, setRunStatus] = useState('')
   const [busy, setBusy] = useState(false)
 
   const activeLive = livePending.find((p) => p.call.id === activeId) ?? livePending[0]
@@ -136,7 +135,6 @@ export function Checkpoint({ onBack }: Props) {
     setQueue(SCENARIOS)
     setActiveId(SCENARIOS[0].id)
     setAudit([])
-    setRunStatus('Offline scenarios')
   }
 
   const startLive = async (
@@ -144,16 +142,13 @@ export function Checkpoint({ onBack }: Props) {
   ) => {
     setMode('live')
     setBusy(true)
-    setRunStatus(`Running ${scenario}`)
     setAudit([])
     await fetch('/api/chaperone/reset', { method: 'POST' })
-    const res = await fetch('/api/chaperone/run', {
+    await fetch('/api/chaperone/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ scenario, useLiveModel: false }),
     })
-    const data = await res.json()
-    setRunStatus(data.started ? 'Live' : 'Failed')
     setBusy(false)
     await refreshLive()
   }
@@ -172,121 +167,115 @@ export function Checkpoint({ onBack }: Props) {
         }))
 
   return (
-    <section className="gate" aria-label="Agent checkpoint">
-      <header className="gate__nav">
-        <button type="button" className="gate__back" onClick={onBack}>
-          ← Home
+    <section className="alert" aria-label="Agent checkpoint">
+      <header className="alert__bar">
+        <button type="button" className="alert__back" onClick={onBack}>
+          [ESC] HOME
         </button>
-        <div className="gate__demos">
+        <span className="alert__title">CHAPERONE</span>
+        <div className="alert__flags">
           <button type="button" disabled={busy} onClick={() => void startLive('destructive')}>
-            Destructive
+            --destructive
           </button>
           <button type="button" disabled={busy} onClick={() => void startLive('benign-http')}>
-            Benign HTTP
+            --benign
           </button>
           <button type="button" disabled={busy} onClick={() => void startLive('borderline')}>
-            Review
+            --review
           </button>
           <button type="button" disabled={busy} onClick={() => void startLive('all')}>
-            All three
+            --all
           </button>
-          <button type="button" onClick={loadScenarios}>Offline</button>
+          <button type="button" onClick={loadScenarios}>--offline</button>
         </div>
-        {runStatus && <span className="gate__status">{runStatus}</span>}
       </header>
 
-      <div className="gate__body">
+      <div className="alert__main">
         {pendingList.length > 1 && (
-          <nav className="gate__queue" aria-label="Pending reviews">
+          <div className="alert__queue">
             {pendingList.map((p) => (
               <button
                 key={p.id}
                 type="button"
                 className={
                   p.id === (activeLive?.call.id ?? active?.id)
-                    ? 'gate__queue-item gate__queue-item--on'
-                    : 'gate__queue-item'
+                    ? 'alert__q alert__q--on'
+                    : 'alert__q'
                 }
                 onClick={() => setActiveId(p.id)}
               >
-                {p.label.slice(0, 48)}
-                <span>{p.level}</span>
+                {p.label.slice(0, 40)} [{p.level}]
               </button>
             ))}
-          </nav>
+          </div>
         )}
 
         {active && verdict ? (
-          <article className="gate__notice">
-            <header className="gate__notice-head">
-              <p className="gate__notice-kicker">Intercept notice</p>
-              <div className="gate__notice-meta">
-                <span>{active.agent}</span>
-                <span>{active.tool}</span>
-                <span className={`gate__risk gate__risk--${verdict.level}`}>
-                  {verdict.level} · {verdict.score}
-                </span>
-              </div>
-            </header>
+          <div className="alert__dialog">
+            <p className="alert__warn">!! TOOL CALL PENDING !!</p>
+            <h2 className="alert__head">
+              Agent wants to run <span>{active.tool}</span>
+            </h2>
+            <p className="alert__sub">
+              RISK {verdict.score} / {verdict.level.toUpperCase()}
+            </p>
+            <p className="alert__line">{verdict.headline}</p>
 
-            <h2 className="gate__summary">{active.summary}</h2>
-            <p className="gate__verdict-line">{verdict.headline}</p>
-
-            <pre className="gate__payload">{active.payload}</pre>
+            <div className="alert__box">
+              <div className="alert__box-label">REQUEST</div>
+              <pre>{active.payload}</pre>
+            </div>
 
             {verdict.findings.length > 0 && (
-              <ol className="gate__findings">
-                {verdict.findings.map((f) => (
+              <ul className="alert__hits">
+                {verdict.findings.map((f, i) => (
                   <li key={f.id}>
-                    <strong>{f.title}</strong>
-                    <span>{f.detail}</span>
+                    <span>{String(i + 1).padStart(2, '0')}</span>
+                    <div>
+                      <strong>{f.title}</strong>
+                      {f.detail}
+                    </div>
                   </li>
                 ))}
-              </ol>
+              </ul>
             )}
 
-            <div className="gate__actions">
+            <div className="alert__btns">
               <button
                 type="button"
-                className="gate__deny"
+                className="alert__deny"
                 onClick={() => void decide('denied')}
               >
-                Deny
+                DON&apos;T ALLOW
               </button>
               <button
                 type="button"
-                className="gate__allow"
+                className="alert__allow"
                 onClick={() => void decide('approved')}
               >
-                Allow and execute
+                ALLOW
               </button>
             </div>
-          </article>
+          </div>
         ) : (
-          <div className="gate__empty">
-            <h2>No intercept active</h2>
-            <p>Run a demo above. Destructive auto-denies. Review waits on you.</p>
-            <button type="button" className="gate__allow" onClick={() => void startLive('all')}>
-              Run all three
+          <div className="alert__idle">
+            <p>&gt; NO PENDING CALL</p>
+            <p>RUN --all TO FIRE ACCEPTANCE TRIO</p>
+            <button type="button" onClick={() => void startLive('all')}>
+              RUN --all
             </button>
           </div>
         )}
 
         {audit.length > 0 && (
-          <aside className="gate__audit" aria-label="Recent decisions">
-            {audit.slice(0, 6).map((e) => (
-              <div
-                key={e.id}
-                className={
-                  e.decision === 'denied' ? 'gate__audit-row gate__audit-row--deny' : 'gate__audit-row'
-                }
-              >
-                <span>{e.decision}</span>
-                <span>{e.call.summary}</span>
-                <span>{e.at}</span>
+          <div className="alert__log">
+            <p>LOG</p>
+            {audit.slice(0, 8).map((e) => (
+              <div key={e.id}>
+                [{e.at}] {e.decision} {e.call.summary.slice(0, 50)}
               </div>
             ))}
-          </aside>
+          </div>
         )}
       </div>
     </section>

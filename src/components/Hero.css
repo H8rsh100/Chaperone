@@ -1,63 +1,50 @@
-.hero {
+.boot {
   position: relative;
   z-index: 1;
   min-height: 100svh;
+  padding: clamp(1.5rem, 5vw, 3rem);
   display: grid;
-  place-items: center;
-  padding: 2rem;
+  align-content: center;
+  gap: 1.5rem;
+  max-width: 640px;
 }
 
-.hero__inner {
-  max-width: 36rem;
-  text-align: center;
-}
-
-.hero__brand {
-  margin: 0 0 1.5rem;
-  font-family: var(--font-display);
-  font-size: clamp(3.5rem, 12vw, 6.5rem);
-  font-weight: 400;
-  line-height: 0.95;
-  letter-spacing: -0.02em;
-  color: var(--ink);
-}
-
-.hero__title {
-  margin: 0 0 1.25rem;
-  font-family: var(--font-display);
-  font-size: clamp(1.5rem, 3.5vw, 2.25rem);
-  font-weight: 400;
+.boot__ascii {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: clamp(0.65rem, 2vw, 0.85rem);
   line-height: 1.2;
-  letter-spacing: -0.01em;
-}
-
-.hero__title em {
-  font-style: italic;
-  color: var(--mute);
-}
-
-.hero__lede {
-  margin: 0 auto 2rem;
-  max-width: 32ch;
-  font-size: 1rem;
-  line-height: 1.55;
-  color: var(--mute);
-}
-
-.hero__btn {
-  appearance: none;
-  border: 1px solid var(--line);
-  background: var(--surface);
   color: var(--ink);
-  padding: 0.85rem 1.6rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
-.hero__btn:hover {
-  background: var(--surface-2);
-  border-color: rgba(240, 235, 227, 0.25);
+.boot__lines p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.8;
+  letter-spacing: 0.02em;
+}
+
+.boot__cmd {
+  appearance: none;
+  border: 3px solid var(--ink);
+  background: var(--ink);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 0.85rem 1.2rem;
+  text-align: left;
+  width: fit-content;
+  transition: background 0.1s, color 0.1s;
+}
+
+.boot__cmd:hover {
+  background: #fff;
+  color: var(--ink);
+}
+
+.boot__hint {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--mute);
 }

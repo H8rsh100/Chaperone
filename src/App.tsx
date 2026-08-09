@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Atmosphere } from './components/Atmosphere'
 import { Hero } from './components/Hero'
 import { Checkpoint } from './components/Checkpoint'
 import './App.css'
@@ -11,7 +10,6 @@ export default function App() {
 
   return (
     <div className="app">
-      <Atmosphere />
       {view === 'hero' ? (
         <Hero onEnter={() => setView('gate')} />
       ) : (

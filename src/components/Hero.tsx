@@ -6,22 +6,25 @@ type Props = {
 
 export function Hero({ onEnter }: Props) {
   return (
-    <section className="hero" aria-label="Chaperone introduction">
-      <div className="hero__inner">
-        <p className="hero__brand">Chaperone</p>
-        <h1 className="hero__title">
-          Nothing from your agent runs
-          <br />
-          <em>without you.</em>
-        </h1>
-        <p className="hero__lede">
-          Real intercept on every tool call. Deny stops execution. Review
-          freezes the agent until you click.
-        </p>
-        <button type="button" className="hero__btn" onClick={onEnter}>
-          Enter checkpoint
-        </button>
+    <section className="boot" aria-label="Chaperone boot">
+      <pre className="boot__ascii" aria-hidden>
+{`╔══════════════════════════════╗
+║  CHAPERONE GATE v0.2         ║
+║  agent tool firewall         ║
+╚══════════════════════════════╝`}
+      </pre>
+
+      <div className="boot__lines">
+        <p>STATUS: GATE ARMED</p>
+        <p>MODE: HUMAN MUST APPROVE TOOL CALLS</p>
+        <p>SHELL + HTTP INTERCEPT: ON</p>
       </div>
+
+      <button type="button" className="boot__cmd" onClick={onEnter}>
+        &gt; ENTER_CHECKPOINT
+      </button>
+
+      <p className="boot__hint">deny blocks execution · review freezes agent</p>
     </section>
   )
 }
