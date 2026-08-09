@@ -1,0 +1,51 @@
+:root {
+  --void: #060708;
+  --ink: #0c0f12;
+  --panel: rgba(14, 18, 22, 0.78);
+  --line: rgba(230, 162, 60, 0.18);
+  --steel: #9aa7b5;
+  --mist: rgba(232, 236, 240, 0.55);
+  --paper: #e8ecef;
+  --amber: #e6a23c;
+  --amber-hot: #f0b95a;
+  --clear: #3dd68c;
+  --hold: #f0b95a;
+  --deny: #ff6b5c;
+  --glow-amber: rgba(230, 162, 60, 0.35);
+  --glow-clear: rgba(61, 214, 140, 0.28);
+  --glow-deny: rgba(255, 107, 92, 0.3);
+  --font-brand: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-brand);
+  background: var(--void);
+  color: var(--paper);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(230, 162, 60, 0.35);
+  color: #fff;
+}
