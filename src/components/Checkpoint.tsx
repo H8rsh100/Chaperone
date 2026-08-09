@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   SCENARIOS,
   inspect,
@@ -19,24 +19,105 @@ type AuditEntry = {
   decision: Decision
   at: string
   score: number
+  decidedBy?: 'auto' | 'human'
+  live?: boolean
+}
+
+type LivePending = {
+  call: {
+    id: string
+    toolName: string
+    input: Record<string, unknown>
+  }
+  toolCall: ToolCall
+  verdict: Verdict
+  createdAt: string
 }
 
 export function Checkpoint({ onBack }: Props) {
-  const [queue, setQueue] = useState<ToolCall[]>(SCENARIOS)
-  const [activeId, setActiveId] = useState(SCENARIOS[0]?.id ?? '')
+  const [mode, setMode] = useState<'scenarios' | 'live'>('live')
+  const [queue, setQueue] = useState<ToolCall[]>([])
+  const [livePending, setLivePending] = useState<LivePending[]>([])
+  const [activeId, setActiveId] = useState('')
   const [audit, setAudit] = useState<AuditEntry[]>([])
   const [flash, setFlash] = useState<Decision | null>(null)
+  const [runStatus, setRunStatus] = useState('Idle')
+  const [busy, setBusy] = useState(false)
 
-  const active = queue.find((c) => c.id === activeId) ?? queue[0]
-  const verdict: Verdict | null = useMemo(
-    () => (active ? inspect(active) : null),
-    [active],
-  )
+  const activeLive = livePending.find((p) => p.call.id === activeId) ?? livePending[0]
+  const activeScenario = queue.find((c) => c.id === activeId) ?? queue[0]
+  const active = mode === 'live' ? activeLive?.toolCall : activeScenario
+  const verdict: Verdict | null = useMemo(() => {
+    if (mode === 'live') return activeLive?.verdict ?? null
+    return active ? inspect(active) : null
+  }, [mode, active, activeLive])
 
-  const decide = (decision: Decision) => {
+  const refreshLive = useCallback(async () => {
+    const res = await fetch('/api/chaperone/pending')
+    const data = (await res.json()) as {
+      pending: LivePending[]
+      audit: Array<Record<string, unknown>>
+    }
+    setLivePending(data.pending)
+    if (data.pending.length && !data.pending.some((p) => p.call.id === activeId)) {
+      setActiveId(data.pending[0].call.id)
+    }
+    if (data.audit?.length) {
+      setAudit((prev) => {
+        const mapped: AuditEntry[] = data.audit
+          .filter((a) => a.toolName && a.toolName !== '(run)')
+          .map((a, i) => ({
+            id: String(a.id ?? `a-${i}`),
+            call: {
+              id: String(a.id ?? i),
+              agent: 'live-agent',
+              tool: 'shell',
+              summary: String(a.inputSummary ?? a.toolName),
+              payload: String(a.inputSummary ?? ''),
+              requestedAt: String(a.timestamp ?? '').slice(11, 19),
+            },
+            decision:
+              a.finalDecision === 'deny' || a.decision === 'deny'
+                ? 'denied'
+                : 'approved',
+            at: String(a.timestamp ?? '').slice(11, 19),
+            score: Number(a.riskScore ?? 0),
+            decidedBy: (a.decidedBy as 'auto' | 'human') ?? 'auto',
+            live: true,
+          }))
+        // Prefer live audits when in live mode
+        return mapped.length ? mapped : prev
+      })
+    }
+  }, [activeId])
+
+  useEffect(() => {
+    if (mode !== 'live') return
+    void refreshLive()
+    const t = window.setInterval(() => {
+      void refreshLive()
+    }, 800)
+    return () => window.clearInterval(t)
+  }, [mode, refreshLive])
+
+  const decide = async (decision: Decision) => {
     if (!active || !verdict) return
     setFlash(decision)
     window.setTimeout(() => setFlash(null), 550)
+
+    if (mode === 'live' && activeLive) {
+      await fetch('/api/chaperone/decide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: activeLive.call.id,
+          decision: decision === 'approved' ? 'allow' : 'deny',
+        }),
+      })
+      await refreshLive()
+      return
+    }
+
     setAudit((prev) => [
       {
         id: `${active.id}-${Date.now()}`,
@@ -48,6 +129,7 @@ export function Checkpoint({ onBack }: Props) {
           second: '2-digit',
         }),
         score: verdict.score,
+        decidedBy: 'human',
       },
       ...prev,
     ])
@@ -58,11 +140,38 @@ export function Checkpoint({ onBack }: Props) {
     })
   }
 
-  const reset = () => {
+  const loadScenarios = () => {
+    setMode('scenarios')
     setQueue(SCENARIOS)
     setActiveId(SCENARIOS[0].id)
     setAudit([])
+    setRunStatus('Scenario pack loaded')
   }
+
+  const startLive = async (
+    scenario: 'destructive' | 'benign-http' | 'borderline' | 'all',
+  ) => {
+    setMode('live')
+    setBusy(true)
+    setRunStatus(`Starting ${scenario}...`)
+    setAudit([])
+    await fetch('/api/chaperone/reset', { method: 'POST' })
+    const res = await fetch('/api/chaperone/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenario, useLiveModel: false }),
+    })
+    const data = await res.json()
+    setRunStatus(
+      data.started
+        ? `Live intercept running (${data.mode}). Deny blocks real execution.`
+        : `Failed: ${data.error ?? 'unknown'}`,
+    )
+    setBusy(false)
+    await refreshLive()
+  }
+
+  const queueCount = mode === 'live' ? livePending.length : queue.length
 
   return (
     <section
@@ -74,22 +183,82 @@ export function Checkpoint({ onBack }: Props) {
           Chaperone
         </button>
         <p className="check__plain">
-          Agent asks to run something. You approve or kill it.
+          Live intercept: tool calls hit inspect.ts before they run.
         </p>
         <div className="check__status">
           <span className="check__dot" />
-          {queue.length} waiting
+          {queueCount} waiting
         </div>
-        <button type="button" className="check__reset" onClick={reset}>
-          Reset queue
-        </button>
       </header>
+
+      <div className="check__livebar">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void startLive('destructive')}
+        >
+          Demo: destructive
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void startLive('benign-http')}
+        >
+          Demo: benign HTTP
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void startLive('borderline')}
+        >
+          Demo: needs review
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void startLive('all')}
+        >
+          Run all three
+        </button>
+        <button type="button" onClick={loadScenarios}>
+          Offline scenarios
+        </button>
+        <span className="check__runstatus">{runStatus}</span>
+      </div>
 
       <div className="check__layout">
         <aside className="check__queue">
-          <p className="check__label">Inbound tool calls</p>
-          {queue.length === 0 ? (
-            <p className="check__empty">Queue clear. Policy held.</p>
+          <p className="check__label">
+            {mode === 'live' ? 'Live review queue' : 'Inbound tool calls'}
+          </p>
+          {queueCount === 0 ? (
+            <p className="check__empty">
+              {mode === 'live'
+                ? 'No human review pending. Auto allow/deny still write the audit trail.'
+                : 'Queue clear. Policy held.'}
+            </p>
+          ) : mode === 'live' ? (
+            <ul>
+              {livePending.map((p) => (
+                <li key={p.call.id}>
+                  <button
+                    type="button"
+                    className={
+                      p.call.id === activeLive?.call.id
+                        ? 'check__item check__item--active'
+                        : 'check__item'
+                    }
+                    onClick={() => setActiveId(p.call.id)}
+                  >
+                    <span className="check__item-tool">{p.call.toolName}</span>
+                    <span className="check__item-sum">{p.toolCall.summary}</span>
+                    <span className="check__item-meta">
+                      live · {p.verdict.level} · {p.createdAt.slice(11, 19)}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           ) : (
             <ul>
               {queue.map((c) => (
@@ -125,6 +294,7 @@ export function Checkpoint({ onBack }: Props) {
                     <h2>{active.summary}</h2>
                     <p className="check__agent">
                       {active.agent} · tool <code>{active.tool}</code>
+                      {mode === 'live' ? ' · LIVE GATE' : ''}
                     </p>
                   </div>
                   <div
@@ -171,14 +341,14 @@ export function Checkpoint({ onBack }: Props) {
                 <button
                   type="button"
                   className="check__deny"
-                  onClick={() => decide('denied')}
+                  onClick={() => void decide('denied')}
                 >
                   Deny
                 </button>
                 <button
                   type="button"
                   className="check__allow"
-                  onClick={() => decide('approved')}
+                  onClick={() => void decide('approved')}
                 >
                   Approve & execute
                 </button>
@@ -186,10 +356,18 @@ export function Checkpoint({ onBack }: Props) {
             </>
           ) : (
             <div className="check__clear">
-              <h2>Checkpoint clear</h2>
-              <p>All inbound agent actions were adjudicated.</p>
-              <button type="button" className="check__allow" onClick={reset}>
-                Reload scenario pack
+              <h2>{mode === 'live' ? 'Start a live intercept' : 'Checkpoint clear'}</h2>
+              <p>
+                {mode === 'live'
+                  ? 'Run destructive, benign HTTP, or needs-review. Auto-deny never executes. Review waits for your click.'
+                  : 'All inbound agent actions were adjudicated.'}
+              </p>
+              <button
+                type="button"
+                className="check__allow"
+                onClick={() => void startLive('all')}
+              >
+                Run acceptance trio
               </button>
             </div>
           )}
@@ -202,8 +380,14 @@ export function Checkpoint({ onBack }: Props) {
           ) : (
             <ul>
               {audit.map((e) => (
-                <li key={e.id} className={`check__audit-row check__audit-row--${e.decision}`}>
-                  <span>{e.decision}</span>
+                <li
+                  key={e.id}
+                  className={`check__audit-row check__audit-row--${e.decision}`}
+                >
+                  <span>
+                    {e.decision}
+                    {e.decidedBy ? ` · ${e.decidedBy}` : ''}
+                  </span>
                   <strong>{e.call.summary}</strong>
                   <em>
                     score {e.score} · {e.at}

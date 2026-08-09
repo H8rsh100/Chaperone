@@ -2,14 +2,17 @@
 
 Your AI wants to run a command. You say yes or no.
 
-Agents can read files, hit the network, and wipe data. Chaperone freezes every tool call until a human approves or blocks it. Parental controls, for AI agents.
+Chaperone wraps an Anthropic tool-use loop so every `tool_use` block is scored by `inspect.ts` before execution. Auto-deny never runs. Review waits for a human Approve/Deny that resolves a real Promise. Allow executes the real tool.
 
-## What you are looking at
+## Live intercept (v1)
 
-1. An agent asks to run something dangerous (steal .env, drop a table, etc.).
-2. Chaperone scores the risk and shows plain-English findings.
-3. You hit **Deny** or **Approve & execute**.
-4. The decision lands in an audit trail.
+1. Enter the checkpoint.
+2. Click **Demo: destructive** (auto-denied, never executed).
+3. Click **Demo: benign HTTP** (auto-allowed, real fetch).
+4. Click **Demo: needs review** (blocks on your Approve/Deny).
+5. Or **Run all three** and watch the audit trail.
+
+Optional live model: set `ANTHROPIC_API_KEY` and POST `{ "useLiveModel": true }` to `/api/chaperone/run`.
 
 ## Run
 
@@ -18,11 +21,28 @@ npm install
 npm run dev
 ```
 
+Open http://localhost:5173
+
+## Tests
+
+```bash
+npm test
+```
+
+## Acceptance script
+
+With `npm run dev` already up:
+
+```bash
+npm run demo:acceptance
+```
+
 ## Stack
 
 - Vite + React + TypeScript
-- Local risk inspector (no API keys)
-- Scenario pack of realistic agent tool calls
+- Framework-agnostic intercept adapter (`src/intercept`)
+- Vite middleware gate (`server/`) for Promise-based human review
+- Sandboxed shell allowlist + HTTP fetch tool registry
 
 ## License
 

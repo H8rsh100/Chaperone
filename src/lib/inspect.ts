@@ -44,13 +44,22 @@ const SECRET_RE =
   /(api[_-]?key|secret|token|password|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|xox[baprs]-)/i
 const DESTRUCTIVE_RE =
   /\b(rm\s+-rf|drop\s+table|truncate\s+|mkfs|dd\s+if=|kubectl\s+delete|terraform\s+destroy)\b/i
+/** Call-shaped egress only. Bare identifier names like `const fetch = ...` must not match. */
 const EGRESS_RE =
-  /\b(curl|wget|fetch|axios|http\.request)\b|https?:\/\/(?!localhost|127\.0\.0\.1)/i
+  /\b(?:curl|wget)\s+[^\n]*https?:\/\/(?!localhost|127\.0\.0\.1)|(?:\b(?:fetch|axios)\s*\(\s*(?:[`'"]https?:\/\/(?!localhost|127\.0\.0\.1)[^`'"]*[`'"]|`[^`]*https?:\/\/(?!localhost|127\.0\.0\.1)[^`]*`))|\bhttp\.request\s*\(/i
 const PRIV_RE =
   /\b(sudo|chmod\s+777|set-acl|iam:|AdministratorAccess|policies\/\* )\b/i
 const INJECT_RE =
   /(ignore previous|system prompt|exfiltrate|send all keys|do not tell the user)/i
 const PATH_RE = /(\.\.\/|\.\.\\|\/etc\/passwd|~\/\.ssh|C:\\Users\\.*\\\.ssh)/i
+
+const TRUSTED_HTTP =
+  /^https?:\/\/(localhost|127\.0\.0\.1|httpbin\.org)(:\d+)?(\/|$)/i
+
+function hasUntrustedHttp(blob: string): boolean {
+  const urls = blob.match(/https?:\/\/[^\s"'`]+/gi) ?? []
+  return urls.some((u) => !TRUSTED_HTTP.test(u))
+}
 
 export function inspect(call: ToolCall): Verdict {
   const findings: Finding[] = []
@@ -72,7 +81,7 @@ export function inspect(call: ToolCall): Verdict {
       weight: 36,
     })
   }
-  if (EGRESS_RE.test(blob) || call.tool === 'http') {
+  if (EGRESS_RE.test(blob) || (call.tool === 'http' && hasUntrustedHttp(blob))) {
     findings.push({
       id: 'egress',
       title: 'External egress',
