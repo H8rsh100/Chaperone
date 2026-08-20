@@ -158,125 +158,171 @@ export function Checkpoint({ onBack }: Props) {
       ? livePending.map((p) => ({
           id: p.call.id,
           label: p.toolCall.summary,
+          agent: p.toolCall.agent,
+          tool: p.toolCall.tool,
           level: p.verdict.level,
         }))
       : queue.map((c) => ({
           id: c.id,
           label: c.summary,
+          agent: c.agent,
+          tool: c.tool,
           level: inspect(c).level,
         }))
 
   return (
-    <section className="alert" aria-label="Agent checkpoint">
-      <header className="alert__bar">
-        <button type="button" className="alert__back" onClick={onBack}>
-          [ESC] HOME
+    <section className="gate" aria-label="Agent checkpoint">
+      <nav className="gate__nav">
+        <button type="button" className="gate__back" onClick={onBack}>
+          <span className="gate__back-arrow">&larr;</span>
+          Home
         </button>
-        <span className="alert__title">CHAPERONE</span>
-        <div className="alert__flags">
-          <button type="button" disabled={busy} onClick={() => void startLive('destructive')}>
-            --destructive
+        <span className="gate__logo">CHAPERONE</span>
+        <div className="gate__chips">
+          <button type="button" className="gate__chip" disabled={busy} onClick={() => void startLive('destructive')}>
+            Destructive
           </button>
-          <button type="button" disabled={busy} onClick={() => void startLive('benign-http')}>
-            --benign
+          <button type="button" className="gate__chip" disabled={busy} onClick={() => void startLive('benign-http')}>
+            Benign
           </button>
-          <button type="button" disabled={busy} onClick={() => void startLive('borderline')}>
-            --review
+          <button type="button" className="gate__chip" disabled={busy} onClick={() => void startLive('borderline')}>
+            Borderline
           </button>
-          <button type="button" disabled={busy} onClick={() => void startLive('all')}>
-            --all
+          <button type="button" className="gate__chip gate__chip--active" disabled={busy} onClick={() => void startLive('all')}>
+            Run All
           </button>
-          <button type="button" onClick={loadScenarios}>--offline</button>
+          <button type="button" className="gate__chip" onClick={loadScenarios}>
+            Offline
+          </button>
         </div>
-      </header>
+      </nav>
 
-      <div className="alert__main">
-        {pendingList.length > 1 && (
-          <div className="alert__queue">
-            {pendingList.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                className={
-                  p.id === (activeLive?.call.id ?? active?.id)
-                    ? `alert__q alert__q--on alert__q--${p.level}`
-                    : `alert__q alert__q--${p.level}`
-                }
-                onClick={() => setActiveId(p.id)}
-              >
-                {p.label.slice(0, 40)} [{p.level}]
-              </button>
-            ))}
-          </div>
+      <div className="gate__layout">
+        {pendingList.length > 0 && (
+          <aside className="gate__sidebar">
+            <p className="gate__sidebar-title">Pending Queue</p>
+            <div className="gate__queue">
+              {pendingList.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={
+                    p.id === (activeLive?.call.id ?? active?.id)
+                      ? `gate__queue-item gate__queue-item--active gate__queue-item--${p.level}`
+                      : `gate__queue-item gate__queue-item--${p.level}`
+                  }
+                  onClick={() => setActiveId(p.id)}
+                >
+                  <span className="gate__queue-agent">{p.agent}</span>
+                  <span className="gate__queue-label">{p.label}</span>
+                  <span className={`gate__queue-badge gate__queue-badge--${p.level}`}>
+                    {p.level}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </aside>
         )}
 
-        {active && verdict ? (
-          <div className="alert__dialog">
-            <p className="alert__warn">!! TOOL CALL PENDING !!</p>
-            <h2 className="alert__head">
-              Agent wants to run <span>{active.tool}</span>
-            </h2>
-            <p className={`alert__sub alert__level alert__level--${verdict.level}`}>
-              RISK {verdict.score} / {verdict.level.toUpperCase()}
-            </p>
-            <p className="alert__line">{verdict.headline}</p>
-
-            <div className="alert__box">
-              <div className="alert__box-label">REQUEST</div>
-              <pre>{active.payload}</pre>
-            </div>
-
-            {verdict.findings.length > 0 && (
-              <ul className="alert__hits">
-                {verdict.findings.map((f, i) => (
-                  <li key={f.id}>
-                    <span>{String(i + 1).padStart(2, '0')}</span>
-                    <div>
-                      <strong>{f.title}</strong>
-                      {f.detail}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <div className="alert__btns">
-              <button
-                type="button"
-                className="alert__deny"
-                onClick={() => void decide('denied')}
-              >
-                DON&apos;T ALLOW
-              </button>
-              <button
-                type="button"
-                className="alert__allow"
-                onClick={() => void decide('approved')}
-              >
-                ALLOW
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="alert__idle">
-            <p>&gt; NO PENDING CALL</p>
-            <p>RUN --all TO FIRE ACCEPTANCE TRIO</p>
-            <button type="button" onClick={() => void startLive('all')}>
-              RUN --all
-            </button>
-          </div>
-        )}
-
-        {audit.length > 0 && (
-          <div className="alert__log">
-            <p>LOG</p>
-            {audit.slice(0, 8).map((e) => (
-              <div key={e.id}>
-                [{e.at}] {e.decision} {e.call.summary.slice(0, 50)}
+        <main className="gate__main">
+          {active && verdict ? (
+            <div className="gate__card" key={active.id}>
+              <div className="gate__card-header">
+                <div className="gate__tool-pill">{active.tool}</div>
+                <span className="gate__card-time">{active.requestedAt}</span>
               </div>
-            ))}
-          </div>
-        )}
+
+              <div className="gate__gauge-wrap">
+                <div className="gate__gauge">
+                  <div
+                    className={`gate__gauge-fill gate__gauge-fill--${verdict.level}`}
+                    style={{ width: `${verdict.score}%` }}
+                  />
+                </div>
+                <span className={`gate__gauge-score gate__gauge-score--${verdict.level}`}>
+                  {verdict.score}
+                </span>
+              </div>
+
+              <div className={`gate__level-badge gate__level-badge--${verdict.level}`}>
+                {verdict.level.toUpperCase()}
+              </div>
+
+              <h2 className="gate__heading">
+                Agent wants to run <span className="gate__heading-tool">{active.tool}</span>
+              </h2>
+
+              <p className="gate__verdict">{verdict.headline}</p>
+
+              <div className="gate__agent-row">
+                <span className="gate__agent-label">Agent</span>
+                <span className="gate__agent-name">{active.agent}</span>
+              </div>
+
+              <div className="gate__payload">
+                <p className="gate__payload-label">Request Payload</p>
+                <pre className="gate__payload-code">{active.payload}</pre>
+              </div>
+
+              {verdict.findings.length > 0 && (
+                <div className="gate__findings">
+                  <p className="gate__findings-title">Findings</p>
+                  {verdict.findings.map((f, i) => (
+                    <div key={f.id} className="gate__finding">
+                      <span className="gate__finding-num">{String(i + 1).padStart(2, '0')}</span>
+                      <div className="gate__finding-body">
+                        <p className="gate__finding-title">{f.title}</p>
+                        <p className="gate__finding-detail">{f.detail}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="gate__actions">
+                <button
+                  type="button"
+                  className="gate__btn gate__btn--deny"
+                  onClick={() => void decide('denied')}
+                >
+                  Don&apos;t Allow
+                </button>
+                <button
+                  type="button"
+                  className="gate__btn gate__btn--allow"
+                  onClick={() => void decide('approved')}
+                >
+                  Allow
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="gate__empty">
+              <div className="gate__empty-icon">&#10003;</div>
+              <p className="gate__empty-text">No pending tool calls</p>
+              <p className="gate__empty-sub">Start a scenario to see the checkpoint in action.</p>
+              <button type="button" className="gate__btn gate__btn--allow" onClick={() => void startLive('all')}>
+                Run All Scenarios
+              </button>
+            </div>
+          )}
+
+          {audit.length > 0 && (
+            <div className="gate__log">
+              <p className="gate__log-title">Decision Log</p>
+              {audit.slice(0, 8).map((e) => (
+                <div key={e.id} className="gate__log-row">
+                  <span className="gate__log-time">{e.at}</span>
+                  <span className={`gate__log-badge gate__log-badge--${e.decision}`}>
+                    {e.decision}
+                  </span>
+                  <span className="gate__log-summary">{e.call.summary.slice(0, 50)}</span>
+                  {e.decidedBy === 'auto' && <span className="gate__log-auto">auto</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </main>
       </div>
     </section>
   )
