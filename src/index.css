@@ -1,12 +1,17 @@
 :root {
-  --bg: #ffffff;
-  --ink: #000000;
-  --mute: #333333;
-  --deny: #ff0000;
-  --allow: #000000;
+  --bg: #0b1120;
+  --surface: #131d33;
+  --ink: #e0e6f0;
+  --mute: #6b7a94;
+  --border: #1e2d4a;
+  --amber: #f0a500;
+  --cyan: #00d4ff;
+  --deny: #ff4444;
+  --allow: #00e676;
+  --grid: rgba(0, 212, 255, 0.04);
   --font-display: 'Bebas Neue', sans-serif;
   --font-mono: 'Space Mono', ui-monospace, monospace;
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 *,
@@ -28,6 +33,9 @@ body {
   color: var(--ink);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  background-image:
+    repeating-linear-gradient(0deg, var(--grid) 0 1px, transparent 1px 60px),
+    repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 60px);
 }
 
 button {
@@ -36,6 +44,23 @@ button {
 }
 
 ::selection {
-  background: #000;
-  color: #fff;
+  background: var(--amber);
+  color: var(--bg);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mute);
 }
