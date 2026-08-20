@@ -199,8 +199,8 @@ export function Checkpoint({ onBack }: Props) {
                 type="button"
                 className={
                   p.id === (activeLive?.call.id ?? active?.id)
-                    ? 'alert__q alert__q--on'
-                    : 'alert__q'
+                    ? `alert__q alert__q--on alert__q--${p.level}`
+                    : `alert__q alert__q--${p.level}`
                 }
                 onClick={() => setActiveId(p.id)}
               >
@@ -216,7 +216,7 @@ export function Checkpoint({ onBack }: Props) {
             <h2 className="alert__head">
               Agent wants to run <span>{active.tool}</span>
             </h2>
-            <p className="alert__sub">
+            <p className={`alert__sub alert__level alert__level--${verdict.level}`}>
               RISK {verdict.score} / {verdict.level.toUpperCase()}
             </p>
             <p className="alert__line">{verdict.headline}</p>
