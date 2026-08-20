@@ -14,7 +14,8 @@
   font-family: var(--font-mono);
   font-size: clamp(0.65rem, 2vw, 0.85rem);
   line-height: 1.2;
-  color: var(--ink);
+  color: var(--amber);
+  text-shadow: 0 0 12px rgba(240, 165, 0, 0.3);
 }
 
 .boot__lines p {
@@ -24,23 +25,42 @@
   letter-spacing: 0.02em;
 }
 
+.boot__status {
+  color: var(--cyan);
+}
+
+.boot__status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.boot__status-dot--green {
+  background: var(--allow);
+  box-shadow: 0 0 6px var(--allow);
+}
+
 .boot__cmd {
   appearance: none;
-  border: 3px solid var(--ink);
-  background: var(--ink);
-  color: #fff;
+  border: 2px solid var(--cyan);
+  background: transparent;
+  color: var(--cyan);
   font-family: var(--font-mono);
   font-size: 0.95rem;
   font-weight: 700;
   padding: 0.85rem 1.2rem;
   text-align: left;
   width: fit-content;
-  transition: background 0.1s, color 0.1s;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
 
 .boot__cmd:hover {
-  background: #fff;
-  color: var(--ink);
+  background: var(--cyan);
+  color: var(--bg);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
 }
 
 .boot__hint {
