@@ -1,70 +1,143 @@
-.boot {
+.hero {
   position: relative;
   z-index: 1;
   min-height: 100svh;
-  padding: clamp(1.5rem, 5vw, 3rem);
-  display: grid;
-  align-content: center;
-  gap: 1.5rem;
-  max-width: 640px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(2rem, 6vw, 4rem);
+  overflow: hidden;
 }
 
-.boot__ascii {
+.hero__glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 600px;
+  height: 600px;
+  transform: translate(-50%, -55%);
+  background: radial-gradient(circle, rgba(240, 165, 0, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero__content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: 520px;
+  text-align: center;
+  animation: fade-up 0.6s ease-out both;
+}
+
+.hero__badge {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: clamp(0.65rem, 2vw, 0.85rem);
-  line-height: 1.2;
-  color: var(--amber);
-  text-shadow: 0 0 12px rgba(240, 165, 0, 0.3);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--cyan);
+  background: var(--cyan-dim);
+  border: 1px solid rgba(0, 212, 255, 0.15);
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-pill);
 }
 
-.boot__lines p {
+.hero__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 12vw, 7rem);
+  line-height: 0.9;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  text-shadow: 0 0 40px rgba(240, 165, 0, 0.15);
+}
+
+.hero__tagline {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: var(--mute);
+  line-height: 1.5;
+}
+
+.hero__cards {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+  animation: fade-up 0.6s ease-out 0.15s both;
+}
+
+.hero__card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-align: left;
+}
+
+.hero__card-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.hero__card-dot--green {
+  background: var(--allow);
+  box-shadow: 0 0 8px var(--allow);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.hero__card-label {
+  margin: 0;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.hero__card-value {
   margin: 0;
   font-size: 0.8rem;
-  line-height: 1.8;
-  letter-spacing: 0.02em;
+  font-weight: 600;
+  color: var(--ink);
 }
 
-.boot__status {
-  color: var(--cyan);
-}
-
-.boot__status-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  margin-right: 6px;
-  vertical-align: middle;
-}
-
-.boot__status-dot--green {
-  background: var(--allow);
-  box-shadow: 0 0 6px var(--allow);
-}
-
-.boot__cmd {
+.hero__cta {
   appearance: none;
-  border: 2px solid var(--cyan);
-  background: transparent;
-  color: var(--cyan);
-  font-family: var(--font-mono);
+  border: none;
+  background: linear-gradient(135deg, var(--cyan), #0099cc);
+  color: var(--bg);
+  font-family: var(--font-body);
   font-size: 0.95rem;
   font-weight: 700;
-  padding: 0.85rem 1.2rem;
-  text-align: left;
-  width: fit-content;
-  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  padding: 0.9rem 2.5rem;
+  border-radius: var(--radius-pill);
+  letter-spacing: 0.02em;
+  transition: transform 0.15s, box-shadow 0.15s;
+  animation: fade-up 0.6s ease-out 0.3s both;
 }
 
-.boot__cmd:hover {
-  background: var(--cyan);
-  color: var(--bg);
-  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+.hero__cta:hover {
+  transform: scale(1.04);
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
 }
 
-.boot__hint {
+.hero__cta:active {
+  transform: scale(0.98);
+}
+
+.hero__hint {
   margin: 0;
   font-size: 0.72rem;
   color: var(--mute);
+  opacity: 0.7;
+  animation: fade-up 0.6s ease-out 0.4s both;
 }
