@@ -3,4 +3,37 @@
   min-height: 100svh;
   isolation: isolate;
   background: var(--bg);
+  overflow: hidden;
+}
+
+.app__view {
+  position: relative;
+  z-index: 3;
+}
+
+/* Fluid page transition: a sheet of ferrofluid sweeps up to cover, then
+   continues off the top to reveal the next view. */
+.wipe {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: var(--fluid-ink);
+  transform: translateY(100%);
+  border-top-left-radius: 50% 12vh;
+  border-top-right-radius: 50% 12vh;
+  pointer-events: none;
+}
+
+.wipe--in {
+  transform: translateY(0);
+  transition: transform 0.46s var(--ease);
+}
+
+.wipe--out {
+  transform: translateY(-100%);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-bottom-left-radius: 50% 12vh;
+  border-bottom-right-radius: 50% 12vh;
+  transition: transform 0.48s var(--ease);
 }

@@ -1,0 +1,58 @@
+.fluid {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: var(--fluid-ink);
+}
+
+/* ---- Guaranteed fallback: a layered black pool with a violet sheen ---- */
+.fluid__fallback {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(60% 45% at 50% 62%, rgba(127, 90, 240, 0.22) 0%, transparent 62%),
+    radial-gradient(38% 30% at 50% 70%, rgba(167, 139, 250, 0.16) 0%, transparent 70%),
+    radial-gradient(120% 90% at 50% 120%, #0b0917 0%, var(--fluid-ink) 58%, #000 100%);
+}
+
+.fluid__fallback::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 62%;
+  width: 70vmin;
+  height: 26vmin;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 30%, rgba(167, 139, 250, 0.14), transparent 70%);
+  filter: blur(14px);
+  animation: pool-sheen 9s ease-in-out infinite;
+}
+
+@keyframes pool-sheen {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+}
+
+/* ---- WebGL layer, hidden until it proves it can render ---- */
+.fluid__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  transition: opacity 0.8s var(--ease);
+}
+
+.fluid--live .fluid__canvas {
+  opacity: 1;
+}
