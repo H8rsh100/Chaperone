@@ -1,30 +1,90 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { readdirSync } from 'node:fs'
+import { userInfo } from 'node:os'
 
 const execFileAsync = promisify(execFile)
 
 export type ToolFn = (input: Record<string, unknown>) => Promise<unknown>
 
-const SHELL_ALLOWLIST = new Set([
-  'echo',
-  'dir',
-  'ls',
-  'pwd',
-  'whoami',
-  'node',
-  'npm',
-])
+/**
+ * Layer-two hard allowlist. A command is validated as a token stream and every
+ * shell metacharacter is rejected BEFORE anything executes. This closes the
+ * classic bypass where the first token is allowlisted but the tail chains a
+ * destructive command (e.g. `echo ok & del /f /q C:\...`).
+ */
+const METACHAR_RE = /[&|;<>`$(){}^!\n\r%*?~]/
 
-function firstToken(command: string): string {
+/** Pure-JS builtins — these never spawn a process. */
+const BUILTINS = new Set(['echo', 'pwd', 'whoami', 'ls', 'dir'])
+
+/** Real binaries we are willing to spawn, each limited to approved subcommands. */
+const BIN_SUBCOMMANDS: Record<string, Set<string>> = {
+  npm: new Set(['test', 'ci', 'run', 'ls', '--version']),
+}
+
+function tokenize(command: string): string[] {
+  const tokens: string[] = []
+  const re = /"([^"]*)"|'([^']*)'|(\S+)/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(command)) !== null) tokens.push(m[1] ?? m[2] ?? m[3])
+  return tokens
+}
+
+type Validation = { ok: true; tokens: string[] } | { ok: false; reason: string }
+
+function validate(command: string): Validation {
   const trimmed = command.trim()
-  if (!trimmed) return ''
-  return trimmed.split(/\s+/)[0].replace(/^.*[/\\]/, '')
+  if (!trimmed) return { ok: false, reason: 'Empty command.' }
+  if (METACHAR_RE.test(trimmed)) {
+    return {
+      ok: false,
+      reason:
+        'Command contains shell metacharacters (chaining, redirection, or expansion is not permitted).',
+    }
+  }
+  const tokens = tokenize(trimmed)
+  if (tokens.length > 32) return { ok: false, reason: 'Command has too many tokens.' }
+  if (tokens.some((t) => /\s/.test(t))) {
+    return { ok: false, reason: 'Quoted arguments containing whitespace are not permitted.' }
+  }
+  return { ok: true, tokens }
+}
+
+function firstToken(tokens: string[]): string {
+  return (tokens[0] ?? '').replace(/^.*[/\\]/, '').toLowerCase()
+}
+
+function runBuiltin(bin: string, tokens: string[]): unknown {
+  switch (bin) {
+    case 'echo':
+      return { ok: true, stdout: tokens.slice(1).join(' ') }
+    case 'pwd':
+      return { ok: true, stdout: process.cwd() }
+    case 'whoami':
+      return { ok: true, stdout: userInfo().username }
+    case 'ls':
+    case 'dir':
+      return { ok: true, stdout: readdirSync(process.cwd()).join('\n').slice(0, 4000) }
+    default:
+      return { ok: false, blocked: true, reason: `Builtin "${bin}" is not implemented.` }
+  }
 }
 
 async function runShell(input: Record<string, unknown>): Promise<unknown> {
   const command = String(input.command ?? '')
-  const bin = firstToken(command)
-  if (!bin || !SHELL_ALLOWLIST.has(bin)) {
+  const check = validate(command)
+  if (!check.ok) {
+    return { ok: false, blocked: true, reason: `Blocked by Chaperone allowlist: ${check.reason}` }
+  }
+
+  const tokens = check.tokens
+  const bin = firstToken(tokens)
+
+  if (BUILTINS.has(bin)) return runBuiltin(bin, tokens)
+
+  const allowedSubs = BIN_SUBCOMMANDS[bin]
+  if (!allowedSubs) {
     return {
       ok: false,
       blocked: true,
@@ -32,18 +92,31 @@ async function runShell(input: Record<string, unknown>): Promise<unknown> {
     }
   }
 
-  // Windows-friendly: run via cmd /c for builtins like dir; otherwise execFile binary.
+  const sub = (tokens[1] ?? '').toLowerCase()
+  if (!allowedSubs.has(sub)) {
+    return {
+      ok: false,
+      blocked: true,
+      reason: `"${bin} ${sub}" is not an approved subcommand.`,
+    }
+  }
+
+  const args = tokens.slice(1)
+  const safeCommand = [bin, ...args].join(' ')
+
   try {
     if (process.platform === 'win32') {
-      const { stdout, stderr } = await execFileAsync('cmd.exe', ['/c', command], {
-        timeout: 8000,
-        windowsHide: true,
-        maxBuffer: 64 * 1024,
-      })
+      // Validated above: no metacharacters and no whitespace inside args, so
+      // cmd.exe receives a command string it cannot chain or redirect.
+      const { stdout, stderr } = await execFileAsync(
+        process.env.ComSpec ?? 'cmd.exe',
+        ['/d', '/s', '/c', safeCommand],
+        { timeout: 15000, windowsHide: true, maxBuffer: 64 * 1024 },
+      )
       return { ok: true, stdout: stdout.slice(0, 4000), stderr: stderr.slice(0, 1000) }
     }
-    const { stdout, stderr } = await execFileAsync(bin, command.split(/\s+/).slice(1), {
-      timeout: 8000,
+    const { stdout, stderr } = await execFileAsync(bin, args, {
+      timeout: 15000,
       maxBuffer: 64 * 1024,
     })
     return { ok: true, stdout: stdout.slice(0, 4000), stderr: stderr.slice(0, 1000) }

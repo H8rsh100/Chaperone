@@ -351,6 +351,48 @@
   color: var(--deny);
 }
 
+/* ---- FAIL-CLOSED COUNTDOWN ---- */
+
+.gate__countdown {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--amber);
+  background: var(--amber-dim);
+  border: 1px solid rgba(255, 176, 32, 0.25);
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-pill);
+}
+
+.gate__countdown--urgent {
+  color: var(--deny);
+  background: var(--deny-dim);
+  border-color: rgba(255, 68, 68, 0.3);
+  animation: gate-pulse 1s ease-in-out infinite;
+}
+
+.gate__countdown-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+@keyframes gate-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
 /* ---- HEADING + VERDICT ---- */
 
 .gate__heading {

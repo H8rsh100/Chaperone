@@ -1,3 +1,5 @@
+import { semanticOpinion, SEMANTIC_MODERATE, SEMANTIC_STRONG } from './semantic'
+
 export type ToolKind =
   | 'shell'
   | 'http'
@@ -15,6 +17,7 @@ export type FindingId =
   | 'privilege'
   | 'injection'
   | 'path-escape'
+  | 'semantic-injection'
 
 export interface Finding {
   id: FindingId
@@ -111,6 +114,21 @@ export function inspect(call: ToolCall): Verdict {
       title: 'Sensitive path access',
       detail: 'Filesystem target sits outside the approved workspace envelope.',
       weight: 24,
+    })
+  }
+
+  // Second opinion: does the text look like a known manipulation pattern even
+  // though no signature rule fired? This is what catches paraphrased attacks.
+  const semantic = semanticOpinion(blob)
+  if (semantic.top && semantic.similarity >= SEMANTIC_MODERATE) {
+    const strong = semantic.similarity >= SEMANTIC_STRONG
+    findings.push({
+      id: 'semantic-injection',
+      title: 'Semantic manipulation match',
+      detail: `Text is ${(semantic.similarity * 100).toFixed(0)}% similar to a known "${
+        semantic.top.label
+      }" pattern: "${semantic.top.exemplar}". No signature rule matched this call.`,
+      weight: strong ? 32 : 26,
     })
   }
 

@@ -31,6 +31,8 @@ type LivePending = {
   toolCall: ToolCall
   verdict: Verdict
   createdAt: string
+  expiresAt?: string
+  timeoutMs?: number
 }
 
 export function Checkpoint({ onBack }: Props) {
@@ -40,6 +42,12 @@ export function Checkpoint({ onBack }: Props) {
   const [activeId, setActiveId] = useState('')
   const [audit, setAudit] = useState<AuditEntry[]>([])
   const [busy, setBusy] = useState(false)
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), 500)
+    return () => window.clearInterval(t)
+  }, [])
 
   const activeLive = livePending.find((p) => p.call.id === activeId) ?? livePending[0]
   const activeScenario = queue.find((c) => c.id === activeId) ?? queue[0]
@@ -48,6 +56,18 @@ export function Checkpoint({ onBack }: Props) {
     if (mode === 'live') return activeLive?.verdict ?? null
     return active ? inspect(active) : null
   }, [mode, active, activeLive])
+
+  const isReviewLive =
+    mode === 'live' &&
+    !!activeLive &&
+    activeLive.verdict.recommendation === 'review' &&
+    !!activeLive.expiresAt
+  const secondsLeft = isReviewLive
+    ? Math.max(
+        0,
+        Math.ceil((new Date(activeLive!.expiresAt!).getTime() - now) / 1000),
+      )
+    : null
 
   const refreshLive = useCallback(async () => {
     const res = await fetch('/api/chaperone/pending')
@@ -138,7 +158,13 @@ export function Checkpoint({ onBack }: Props) {
   }
 
   const startLive = async (
-    scenario: 'destructive' | 'benign-http' | 'borderline' | 'all',
+    scenario:
+      | 'destructive'
+      | 'benign-http'
+      | 'borderline'
+      | 'adversarial'
+      | 'encoded'
+      | 'all',
   ) => {
     setMode('live')
     setBusy(true)
@@ -187,6 +213,12 @@ export function Checkpoint({ onBack }: Props) {
           </button>
           <button type="button" className="gate__chip" disabled={busy} onClick={() => void startLive('borderline')}>
             Borderline
+          </button>
+          <button type="button" className="gate__chip" disabled={busy} onClick={() => void startLive('adversarial')}>
+            Adversarial
+          </button>
+          <button type="button" className="gate__chip" disabled={busy} onClick={() => void startLive('encoded')}>
+            Encoded
           </button>
           <button type="button" className="gate__chip gate__chip--active" disabled={busy} onClick={() => void startLive('all')}>
             Run All
@@ -247,6 +279,20 @@ export function Checkpoint({ onBack }: Props) {
               <div className={`gate__level-badge gate__level-badge--${verdict.level}`}>
                 {verdict.level.toUpperCase()}
               </div>
+
+              {isReviewLive && (
+                <div
+                  className={
+                    secondsLeft !== null && secondsLeft <= 10
+                      ? 'gate__countdown gate__countdown--urgent'
+                      : 'gate__countdown'
+                  }
+                  role="status"
+                >
+                  <span className="gate__countdown-dot" />
+                  Fail-closed in {secondsLeft}s — no response auto-denies
+                </div>
+              )}
 
               <h2 className="gate__heading">
                 Agent wants to run <span className="gate__heading-tool">{active.tool}</span>
