@@ -1,5 +1,6 @@
 import type { Plugin } from 'vite'
 import { runWithChaperone } from '../src/intercept/anthropicIntercept'
+import { inspectPending } from '../src/intercept/mapCall'
 import { chaperoneToolDefs, toolRegistry } from './toolRegistry'
 import {
   clearGate,
@@ -64,6 +65,23 @@ export function chaperoneApiPlugin(): Plugin {
           if (req.method === 'POST' && url.startsWith('/api/chaperone/reset')) {
             clearGate()
             return send(res, 200, { ok: true })
+          }
+
+          // Score an arbitrary hypothetical tool call WITHOUT executing it.
+          // Used by the evaluation harness (scripts/eval.mjs).
+          if (req.method === 'POST' && url.startsWith('/api/chaperone/inspect')) {
+            const body = (await readJson(req)) as {
+              toolName?: string
+              input?: Record<string, unknown>
+            }
+            if (!body.toolName) return send(res, 400, { error: 'toolName required' })
+            const { toolCall, verdict } = inspectPending({
+              id: 'inspect',
+              toolName: body.toolName,
+              input: body.input ?? {},
+              rawBlock: null,
+            })
+            return send(res, 200, { toolCall, verdict })
           }
 
           if (req.method === 'POST' && url.startsWith('/api/chaperone/run')) {

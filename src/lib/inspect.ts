@@ -81,7 +81,7 @@ export function inspect(call: ToolCall): Verdict {
       id: 'destructive',
       title: 'Destructive mutation',
       detail: 'Command can delete, destroy, or irreversibly change production state.',
-      weight: 36,
+      weight: 50,
     })
   }
   if (EGRESS_RE.test(blob) || (call.tool === 'http' && hasUntrustedHttp(blob))) {
@@ -89,7 +89,7 @@ export function inspect(call: ToolCall): Verdict {
       id: 'egress',
       title: 'External egress',
       detail: 'Network call may exfiltrate context to an untrusted destination.',
-      weight: 22,
+      weight: 26,
     })
   }
   if (PRIV_RE.test(blob)) {
@@ -113,7 +113,7 @@ export function inspect(call: ToolCall): Verdict {
       id: 'path-escape',
       title: 'Sensitive path access',
       detail: 'Filesystem target sits outside the approved workspace envelope.',
-      weight: 24,
+      weight: 26,
     })
   }
 
