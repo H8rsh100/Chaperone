@@ -1,3 +1,6 @@
+import { useEffect } from 'react'
+import { useMagnetic } from '../visual/magnetic'
+import { setFluid } from '../visual/state'
 import './Hero.css'
 
 type Props = {
@@ -5,16 +8,22 @@ type Props = {
 }
 
 export function Hero({ onEnter }: Props) {
+  const ctaRef = useMagnetic<HTMLButtonElement>(120, 0.3)
+
+  useEffect(() => {
+    setFluid({ mode: 'idle', risk: 0, field: 1, surface: 'hero' })
+  }, [])
+
   return (
     <section className="hero" aria-label="Chaperone landing">
-      <div className="hero__glow" aria-hidden />
-
       <div className="hero__content">
-        <p className="hero__badge">v0.2 // HUMAN-IN-THE-LOOP FIREWALL</p>
+        <p className="hero__badge mono">v0.2 // HUMAN-IN-THE-LOOP FIREWALL</p>
 
         <h1 className="hero__title">CHAPERONE</h1>
 
-        <p className="hero__tagline">Parental controls, for AI agents.</p>
+        <p className="hero__tagline">
+          Parental controls, for <em>AI agents</em>.
+        </p>
 
         <div className="hero__cards">
           <div className="hero__card">
@@ -40,11 +49,13 @@ export function Hero({ onEnter }: Props) {
           </div>
         </div>
 
-        <button type="button" className="hero__cta" onClick={onEnter}>
+        <button ref={ctaRef} type="button" className="hero__cta magnetic" onClick={onEnter}>
           Enter Checkpoint
         </button>
 
         <p className="hero__hint">Deny blocks execution. Review freezes the agent.</p>
+
+        <p className="hero__stats mono">INTERCEPTED 47 · SUSPENDED 12 · EXECUTED 35</p>
       </div>
     </section>
   )
