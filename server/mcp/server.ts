@@ -57,7 +57,7 @@ export async function callMcpTool(
       const toolCall = pendingToToolCall(call)
       return { toolCall, verdict: await inspectCallAsync(toolCall) }
     },
-    onReview: (call) => requestHumanDecision(call),
+    onReview: (call, verdict) => requestHumanDecision(call, verdict),
     executeTool: async (n, input) => {
       const fn = toolRegistry[n]
       if (!fn) return { error: `Unknown tool ${n}` }
@@ -77,6 +77,7 @@ export async function callMcpTool(
     finalDecision: adj.decision,
     outcome: adj.outcome,
     reason: adj.reason,
+    findings: adj.verdict.findings,
     channel: 'mcp',
   })
 

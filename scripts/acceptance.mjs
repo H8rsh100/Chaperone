@@ -2,7 +2,7 @@
  * Acceptance helper: hits the Vite dev server APIs for the three demo scenarios.
  * Start `npm run dev` first, then run `npm run demo:acceptance`.
  */
-const BASE = process.env.CHAPERONE_URL ?? 'http://127.0.0.1:5174'
+const BASE = process.env.CHAPERONE_URL ?? 'http://localhost:5174'
 
 async function post(path, body) {
   const res = await fetch(`${BASE}${path}`, {

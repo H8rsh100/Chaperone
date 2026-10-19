@@ -139,7 +139,7 @@ keyboard, no overlapping talk.
 ## Pre-stage checklist
 
 1. `npm run build` clean, `npm test` green.
-2. `npm run dev -- --host 127.0.0.1 --port 5174 --strictPort`; wait for `/healthz` → `model: warm`.
+2. `npm run dev`; wait for `/healthz` → `model: warm`.
 3. `npm run bench` green (writes `docs/bench-output.json`).
 4. `POST /api/chaperone/ledger/anchor` once so the terminator shows `anchored:1`; tamper demo pre-staged.
 5. Two laptops, hotspot, charger + power strip; repo on USB **and** cloud.

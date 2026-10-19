@@ -25,7 +25,7 @@ MCP client  ──stdio/JSON-RPC──▶  server/mcp/gateway.mjs  ──HTTP─
     "chaperone": {
       "command": "node",
       "args": ["server/mcp/gateway.mjs"],
-      "env": { "CHAPERONE_URL": "http://127.0.0.1:5174" }
+      "env": { "CHAPERONE_URL": "http://localhost:5174" }
     }
   }
 }

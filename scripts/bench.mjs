@@ -18,7 +18,7 @@ import {
   wilson,
 } from './metrics.mjs'
 
-const BASE = process.env.CHAPERONE_URL ?? 'http://127.0.0.1:5174'
+const BASE = process.env.CHAPERONE_URL ?? 'http://localhost:5174'
 /** The engine routes to review/deny at score >= 25, so this is its operating point. */
 const TAU = 0.25
 
@@ -43,7 +43,7 @@ async function main() {
     if (!probe.ok) throw new Error(String(probe.status))
   } catch {
     console.error(`Chaperone API not reachable at ${BASE}. Start it first:`)
-    console.error('  npm run dev -- --host 127.0.0.1 --port 5174 --strictPort')
+    console.error('  npm run dev   # http://localhost:5174')
     process.exit(1)
   }
 

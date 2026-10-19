@@ -34,6 +34,7 @@ export interface ReviewResolution {
 
 export type ToolCallHandler = (
   call: PendingToolCall,
+  verdict?: Verdict,
 ) => Promise<ReviewResolution>
 
 /**

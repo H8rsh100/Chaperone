@@ -47,7 +47,7 @@ function demoTurns(
       type: 'tool_use',
       id: 'demo_benign',
       name: 'http_fetch',
-      input: { url: 'https://httpbin.org/get', method: 'GET' },
+      input: { url: 'http://localhost:5174/fixtures/benign', method: 'GET' },
     },
   ]
   const borderline: ContentBlock[] = [

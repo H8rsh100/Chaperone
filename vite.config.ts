@@ -6,5 +6,8 @@ export default defineConfig({
   plugins: [react(), chaperoneApiPlugin()],
   server: {
     port: 5174,
+    // Fail loudly instead of silently moving to 5175: the demo fixture and the
+    // pre-stage checklist assume a stable origin.
+    strictPort: true,
   },
 })

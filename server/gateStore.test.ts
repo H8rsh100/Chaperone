@@ -6,6 +6,7 @@ import {
   clearGate,
 } from './gateStore'
 import type { PendingToolCall } from '../src/intercept/types'
+import { finalizeVerdict } from '../src/lib/inspect'
 
 function pending(id: string): PendingToolCall {
   return {
@@ -56,6 +57,22 @@ describe('fail-closed review gate', () => {
     const result = resolveDecision('t5', 'allow', other.decisionToken)
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.status).toBe(403)
+  })
+
+  it('keeps the adjudicated verdict, including taint findings, on the review item', () => {
+    process.env.CHAPERONE_REVIEW_TIMEOUT_MS = '5000'
+    const verdict = finalizeVerdict([
+      {
+        id: 'taint-flow',
+        title: 'Tainted argument',
+        detail: 'Fetched page planted ZQ7XK2M9; next call reuses it.',
+        weight: 56,
+      },
+    ])
+    void requestHumanDecision(pending('t7'), verdict)
+    const item = listPending().find((i) => i.call.id === 't7')!
+    expect(item.verdict.score).toBe(56)
+    expect(item.verdict.findings.map((f) => f.id)).toEqual(['taint-flow'])
   })
 
   it('exposes an expiry timestamp so the UI can count down', () => {

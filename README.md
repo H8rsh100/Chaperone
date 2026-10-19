@@ -31,7 +31,7 @@ Open http://localhost:5174 → **Enter checkpoint** → use:
 | Button | What happens |
 |---|---|
 | **Destructive** | Auto-denied. Tool never executes. |
-| **Benign** | Auto-allowed. Real fetch runs. |
+| **Benign** | Auto-allowed. Fetches a local fixture (no venue Wi-Fi). |
 | **Borderline** | Agent waits. Your Approve/Deny resolves the Promise. |
 | **Adversarial** | No signature matches. The semantic layer escalates it to review live. |
 | **Encoded** | Scorer misses the base64 payload; the hard allowlist still blocks the pipe (defense in depth). |
@@ -110,9 +110,9 @@ follow-up `echo` at 85% confidence (`blocked_by_policy`, score 56).
 
 ### Hard allowlist (layer two)
 
-`toolRegistry.ts` validates every shell command as a token stream and rejects shell metacharacters **before** executing, closes the first-token-chaining bypass, runs `echo`/`ls`/`dir`/`pwd`/`whoami` as pure JS builtins, drops `node`, and limits `npm` to approved subcommands.
+`toolRegistry.ts` validates every shell command as a token stream and rejects shell metacharacters **before** executing, closes the first-token-chaining bypass, runs `echo`/`ls`/`dir`/`pwd`/`whoami` as pure JS builtins, drops `node`, and permits exactly `npm test` and `npm run build` (no `npm ci`, no arbitrary `npm run <script>`, no appended args).
 
-Config: `CHAPERONE_REVIEW_TIMEOUT_MS` (default `30000`).
+Config: `CHAPERONE_REVIEW_TIMEOUT_MS` (default `8000` in dev, `30000` in production).
 
 ### Tamper-evident audit
 

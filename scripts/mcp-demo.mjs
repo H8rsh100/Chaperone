@@ -12,7 +12,7 @@ import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
-const BASE = process.env.CHAPERONE_URL ?? 'http://127.0.0.1:5174'
+const BASE = process.env.CHAPERONE_URL ?? 'http://localhost:5174'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 

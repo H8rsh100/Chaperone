@@ -3,6 +3,7 @@ import {
   SCENARIOS,
   inspect,
   type Finding,
+  type FindingId,
   type ToolCall,
   type Verdict,
 } from '../lib/inspect'
@@ -118,10 +119,22 @@ const SCENARIO_META: Array<{
     title: 'Benign',
     tag: 'Safe',
     outcome: 'Runs automatically',
-    detail: 'GET httpbin.org (needs net)',
+    detail: 'GET local fixture (no net)',
     tone: 'allow',
   },
 ]
+
+const FINDING_SOURCE: Record<FindingId, { label: string; tone: string }> = {
+  'secret-exfil': { label: 'Deterministic', tone: 'rule' },
+  destructive: { label: 'Deterministic', tone: 'rule' },
+  egress: { label: 'Deterministic', tone: 'rule' },
+  privilege: { label: 'Deterministic', tone: 'rule' },
+  injection: { label: 'Deterministic', tone: 'rule' },
+  'path-escape': { label: 'Deterministic', tone: 'rule' },
+  'semantic-injection': { label: 'Semantic', tone: 'semantic' },
+  'onnx-semantic': { label: 'ONNX Semantic', tone: 'semantic' },
+  'taint-flow': { label: 'Taint Sentinel', tone: 'taint' },
+}
 
 const STATUS_LABEL: Record<Status, string> = {
   pending: 'HELD',
@@ -488,15 +501,25 @@ export function Checkpoint({ onBack }: Props) {
                   <p className="gate__findings-title">
                     Findings · {verdict.findings.length}
                   </p>
-                  {verdict.findings.map((f, i) => (
-                    <div key={f.id} className="gate__finding">
-                      <span className="gate__finding-num">{String(i + 1).padStart(2, '0')}</span>
-                      <div className="gate__finding-body">
-                        <p className="gate__finding-title">{f.title}</p>
-                        <p className="gate__finding-detail">{f.detail}</p>
+                  {verdict.findings.map((f, i) => {
+                    const source = FINDING_SOURCE[f.id]
+                    return (
+                      <div key={f.id} className={`gate__finding gate__finding--${source.tone}`}>
+                        <span className="gate__finding-num">{String(i + 1).padStart(2, '0')}</span>
+                        <div className="gate__finding-body">
+                          <p className="gate__finding-title">
+                            <span
+                              className={`gate__finding-badge gate__finding-badge--${source.tone}`}
+                            >
+                              {source.label}
+                            </span>
+                            {f.title}
+                          </p>
+                          <p className="gate__finding-detail">{f.detail}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
 
@@ -577,15 +600,25 @@ export function Checkpoint({ onBack }: Props) {
               {latest.findings && latest.findings.length > 0 && (
                 <div className="gate__findings">
                   <p className="gate__findings-title">Findings · {latest.findings.length}</p>
-                  {latest.findings.map((f, i) => (
-                    <div key={f.id} className="gate__finding">
-                      <span className="gate__finding-num">{String(i + 1).padStart(2, '0')}</span>
-                      <div className="gate__finding-body">
-                        <p className="gate__finding-title">{f.title}</p>
-                        <p className="gate__finding-detail">{f.detail}</p>
+                  {latest.findings.map((f, i) => {
+                    const source = FINDING_SOURCE[f.id]
+                    return (
+                      <div key={f.id} className={`gate__finding gate__finding--${source.tone}`}>
+                        <span className="gate__finding-num">{String(i + 1).padStart(2, '0')}</span>
+                        <div className="gate__finding-body">
+                          <p className="gate__finding-title">
+                            <span
+                              className={`gate__finding-badge gate__finding-badge--${source.tone}`}
+                            >
+                              {source.label}
+                            </span>
+                            {f.title}
+                          </p>
+                          <p className="gate__finding-detail">{f.detail}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
 

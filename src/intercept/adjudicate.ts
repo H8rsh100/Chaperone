@@ -18,7 +18,7 @@ export interface AdjudicateDeps {
   ) =>
     | { toolCall: ToolCall; verdict: Verdict }
     | Promise<{ toolCall: ToolCall; verdict: Verdict }>
-  onReview: (call: PendingToolCall) => Promise<ReviewResolution>
+  onReview: (call: PendingToolCall, verdict: Verdict) => Promise<ReviewResolution>
   executeTool: (name: string, input: Record<string, unknown>) => Promise<unknown>
 }
 
@@ -66,7 +66,8 @@ export async function adjudicate(
   }
 
   if (verdict.recommendation === 'review') {
-    const resolution = await deps.onReview(pending)
+    // Hand the human the exact verdict the gate saw - including taint findings.
+    const resolution = await deps.onReview(pending, verdict)
     if (resolution.decision === 'deny') {
       const failClosed = resolution.decidedBy === 'auto'
       return {

@@ -27,7 +27,7 @@ Key existing files:
 | Scenario | Expected |
 |---|---|
 | `destructive` | auto **deny** — never executes |
-| `benign-http` | auto **allow** — *needs internet (httpbin.org) → replace with your local fixture* |
+| `benign-http` | auto **allow** — *fetches the local `/fixtures/benign` route (no internet)* |
 | `borderline` | **review** → human decides |
 | `adversarial` | **review** — caught by the semantic layer |
 | `encoded` | scorer allow, then **blocked by the hard allowlist** (defense in depth) |

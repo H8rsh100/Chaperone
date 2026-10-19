@@ -38,14 +38,20 @@ const waiters = new Map<string, Waiter>()
 const auditLog: Array<Record<string, unknown>> = []
 
 const DEFAULT_REVIEW_TIMEOUT_MS = 30_000
+/** Stage default: an 8-10s beat reads as decisive, 30s stalls the room. */
+const DEV_REVIEW_TIMEOUT_MS = 8_000
 
 /**
  * Fail-closed window. If a human does not respond before this elapses the call
- * is auto-denied. Overridable for demos/tests via CHAPERONE_REVIEW_TIMEOUT_MS.
+ * is auto-denied. Dev/test default to 8s for the demo; production stays 30s.
+ * Overridable everywhere via CHAPERONE_REVIEW_TIMEOUT_MS.
  */
 export function reviewTimeoutMs(): number {
   const raw = Number(process.env.CHAPERONE_REVIEW_TIMEOUT_MS)
-  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_REVIEW_TIMEOUT_MS
+  if (Number.isFinite(raw) && raw > 0) return raw
+  return process.env.NODE_ENV === 'production'
+    ? DEFAULT_REVIEW_TIMEOUT_MS
+    : DEV_REVIEW_TIMEOUT_MS
 }
 
 export function listPending(): GatePendingItem[] {
@@ -87,8 +93,13 @@ function approvalTokenRequired(): boolean {
 
 export function requestHumanDecision(
   call: PendingToolCall,
+  verdictOverride?: Verdict,
 ): Promise<ReviewResolution> {
-  const { toolCall, verdict } = inspectPending(call)
+  const inspected = inspectPending(call)
+  const toolCall = inspected.toolCall
+  // The caller already ran the full pipeline (rules + ONNX + taint). Use that
+  // exact verdict for the review card; never re-score the human's evidence.
+  const verdict = verdictOverride ?? inspected.verdict
   const timeoutMs = reviewTimeoutMs()
   const now = Date.now()
   const callHash = callHashOf(call)
@@ -106,11 +117,15 @@ export function requestHumanDecision(
 
   // Upgrade to the embedding second opinion once the model is warm. Never
   // blocks the gate: the sync verdict is shown immediately and swapped in place.
-  void inspectCallAsync(toolCall)
-    .then((augmented) => {
-      item.verdict = augmented
-    })
-    .catch(() => {})
+  // Skip when the caller supplied a complete verdict (it already includes ONNX
+  // and taint; re-scoring here would drop the provenance finding).
+  if (!verdictOverride) {
+    void inspectCallAsync(toolCall)
+      .then((augmented) => {
+        item.verdict = augmented
+      })
+      .catch(() => {})
+  }
 
   return new Promise((resolve) => {
     const timer = setTimeout(() => {

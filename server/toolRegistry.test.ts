@@ -30,6 +30,22 @@ describe('shell allowlist hardening', () => {
     expect(res.blocked).toBe(true)
   })
 
+  it('blocks arbitrary npm scripts (npm run <anything>)', async () => {
+    const res = await run({ command: 'npm run dev' })
+    expect(res.blocked).toBe(true)
+    expect(res.reason).toContain('Only "npm test" and "npm run build"')
+  })
+
+  it('blocks npm ci because it runs install lifecycle scripts', async () => {
+    const res = await run({ command: 'npm ci' })
+    expect(res.blocked).toBe(true)
+  })
+
+  it('blocks appended args to an approved npm command', async () => {
+    const res = await run({ command: 'npm run build -- --prod' })
+    expect(res.blocked).toBe(true)
+  })
+
   it('blocks an unknown binary', async () => {
     const res = await run({ command: 'rm -rf /' })
     expect(res.blocked).toBe(true)

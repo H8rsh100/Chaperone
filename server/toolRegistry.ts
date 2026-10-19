@@ -18,10 +18,13 @@ const METACHAR_RE = /[&|;<>`$(){}^!\n\r%*?~]/
 /** Pure-JS builtins — these never spawn a process. */
 const BUILTINS = new Set(['echo', 'pwd', 'whoami', 'ls', 'dir'])
 
-/** Real binaries we are willing to spawn, each limited to approved subcommands. */
-const BIN_SUBCOMMANDS: Record<string, Set<string>> = {
-  npm: new Set(['test', 'ci', 'run', 'ls', '--version']),
-}
+/**
+ * The only external binary we spawn, with a fixed argv. These are exact
+ * commands, not a subcommand prefix: `npm run <anything>`, `npm ci` (install
+ * lifecycle scripts), and appended args are all rejected. This is an
+ * authorization rule, not a sandbox.
+ */
+const NPM_ALLOWED = new Set(['test', 'run build'])
 
 function tokenize(command: string): string[] {
   const tokens: string[] = []
@@ -83,8 +86,7 @@ async function runShell(input: Record<string, unknown>): Promise<unknown> {
 
   if (BUILTINS.has(bin)) return runBuiltin(bin, tokens)
 
-  const allowedSubs = BIN_SUBCOMMANDS[bin]
-  if (!allowedSubs) {
+  if (bin !== 'npm') {
     return {
       ok: false,
       blocked: true,
@@ -92,17 +94,18 @@ async function runShell(input: Record<string, unknown>): Promise<unknown> {
     }
   }
 
-  const sub = (tokens[1] ?? '').toLowerCase()
-  if (!allowedSubs.has(sub)) {
+  // Exact argv match. Extra tokens, arbitrary scripts, and lifecycle hooks
+  // (`ci`, `run <script>`, `--` args) never reach cmd.exe.
+  const args = tokens.slice(1)
+  const npmArgs = args.map((token) => token.toLowerCase())
+  const safeCommand = [bin, ...npmArgs].join(' ')
+  if (!NPM_ALLOWED.has(npmArgs.join(' '))) {
     return {
       ok: false,
       blocked: true,
-      reason: `"${bin} ${sub}" is not an approved subcommand.`,
+      reason: `"${safeCommand}" is not an approved npm command. Only "npm test" and "npm run build" are permitted.`,
     }
   }
-
-  const args = tokens.slice(1)
-  const safeCommand = [bin, ...args].join(' ')
 
   try {
     if (process.platform === 'win32') {
