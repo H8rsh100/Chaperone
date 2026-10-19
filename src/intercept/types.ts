@@ -1,4 +1,4 @@
-import type { ToolCall, Verdict } from '../lib/inspect'
+import type { Finding, ToolCall, Verdict } from '../lib/inspect'
 
 export type InterceptDecision = 'allow' | 'deny'
 
@@ -57,6 +57,8 @@ export interface AuditRecord {
   /** Authoritative result of the call, written after execution. */
   outcome: Outcome
   reason?: string
+  /** Why the verdict landed where it did; persisted so blocked calls stay explainable. */
+  findings?: Finding[]
 }
 
 export interface AnthropicToolDefinition {

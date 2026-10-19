@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   SCENARIOS,
   inspect,
+  type Finding,
   type ToolCall,
   type Verdict,
 } from '../lib/inspect'
@@ -35,6 +36,7 @@ type AuditEntry = {
   level?: string
   reason?: string
   outcome?: Outcome
+  findings?: Finding[]
 }
 
 type LivePending = {
@@ -221,6 +223,7 @@ export function Checkpoint({ onBack }: Props) {
             level: String(a.riskLevel ?? ''),
             reason: a.reason ? String(a.reason) : undefined,
             outcome: a.outcome ? (String(a.outcome) as Outcome) : undefined,
+            findings: Array.isArray(a.findings) ? (a.findings as Finding[]) : undefined,
           })),
       )
     }
@@ -570,6 +573,21 @@ export function Checkpoint({ onBack }: Props) {
                 <p className="gate__payload-label">Tool call</p>
                 <pre className="gate__payload-code">{latest.call.payload}</pre>
               </div>
+
+              {latest.findings && latest.findings.length > 0 && (
+                <div className="gate__findings">
+                  <p className="gate__findings-title">Findings · {latest.findings.length}</p>
+                  {latest.findings.map((f, i) => (
+                    <div key={f.id} className="gate__finding">
+                      <span className="gate__finding-num">{String(i + 1).padStart(2, '0')}</span>
+                      <div className="gate__finding-body">
+                        <p className="gate__finding-title">{f.title}</p>
+                        <p className="gate__finding-detail">{f.detail}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {latest.reason && (
                 <div className="gate__outcome-reason">

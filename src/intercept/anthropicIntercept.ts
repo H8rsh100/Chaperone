@@ -239,6 +239,7 @@ export async function runWithChaperone(
         riskLevel: verdict.level,
         decision,
         decidedBy,
+        findings: verdict.findings,
       }
 
       emitAudit({ ...baseAudit, finalDecision: decision, outcome, reason })
