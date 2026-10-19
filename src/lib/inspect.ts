@@ -45,8 +45,10 @@ export interface Verdict {
 
 const SECRET_RE =
   /(api[_-]?key|secret|token|password|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|xox[baprs]-)/i
+// No trailing \b: alternatives may end in a non-word char (`dd if=`), where a
+// word boundary would never match before the following `/`.
 const DESTRUCTIVE_RE =
-  /\b(rm\s+-rf|drop\s+table|truncate\s+|mkfs|dd\s+if=|kubectl\s+delete|terraform\s+destroy)\b/i
+  /\b(rm\s+-rf|drop\s+table|truncate\s+|mkfs|dd\s+if=|kubectl\s+delete|terraform\s+destroy)/i
 /** Call-shaped egress only. Bare identifier names like `const fetch = ...` must not match. */
 const EGRESS_RE =
   /\b(?:curl|wget)\s+[^\n]*https?:\/\/(?!localhost|127\.0\.0\.1)|(?:\b(?:fetch|axios)\s*\(\s*(?:[`'"]https?:\/\/(?!localhost|127\.0\.0\.1)[^`'"]*[`'"]|`[^`]*https?:\/\/(?!localhost|127\.0\.0\.1)[^`]*`))|\bhttp\.request\s*\(/i

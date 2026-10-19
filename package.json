@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "demo:acceptance": "node scripts/acceptance.mjs",
-    "eval": "node scripts/eval.mjs"
+    "eval": "node scripts/eval.mjs",
+    "bench": "node scripts/bench.mjs"
   },
   "dependencies": {
     "react": "^19.1.0",
