@@ -13,6 +13,14 @@ type Props = {
 }
 
 type Decision = 'approved' | 'denied'
+type Status = 'pending' | 'approved' | 'denied' | 'blocked' | 'expired'
+type Scenario =
+  | 'destructive'
+  | 'benign-http'
+  | 'borderline'
+  | 'adversarial'
+  | 'encoded'
+  | 'all'
 
 type AuditEntry = {
   id: string
@@ -21,6 +29,8 @@ type AuditEntry = {
   at: string
   score: number
   decidedBy?: 'auto' | 'human'
+  level?: string
+  reason?: string
 }
 
 type LivePending = {
@@ -34,6 +44,90 @@ type LivePending = {
   createdAt: string
   expiresAt?: string
   timeoutMs?: number
+}
+
+type ActivityItem = {
+  id: string
+  at: string
+  tool: string
+  summary: string
+  score: number
+  level: string
+  status: Status
+  actor: 'human' | 'auto'
+  reason?: string
+}
+
+const SCENARIO_META: Array<{
+  key: Exclude<Scenario, 'all'>
+  title: string
+  tag: string
+  outcome: string
+  detail: string
+  tone: 'allow' | 'review' | 'deny'
+}> = [
+  {
+    key: 'destructive',
+    title: 'Destructive',
+    tag: 'Dangerous',
+    outcome: 'Chaperone blocks it',
+    detail: 'rm -rf against home dirs',
+    tone: 'deny',
+  },
+  {
+    key: 'borderline',
+    title: 'Borderline',
+    tag: 'Risky',
+    outcome: 'Freezes for your call',
+    detail: 'chmod 777 + test runner',
+    tone: 'review',
+  },
+  {
+    key: 'adversarial',
+    title: 'Adversarial',
+    tag: 'Risky',
+    outcome: 'Caught by semantic layer',
+    detail: 'paraphrased exfil, no keywords',
+    tone: 'review',
+  },
+  {
+    key: 'encoded',
+    title: 'Encoded',
+    tag: 'Dangerous',
+    outcome: 'Allowlist blocks it',
+    detail: 'base64 exfil through a pipe',
+    tone: 'deny',
+  },
+  {
+    key: 'benign-http',
+    title: 'Benign',
+    tag: 'Safe',
+    outcome: 'Runs automatically',
+    detail: 'GET httpbin.org (needs net)',
+    tone: 'allow',
+  },
+]
+
+function statusOf(e: AuditEntry): Status {
+  if (e.decision !== 'denied') return 'approved'
+  if (e.decidedBy === 'human') return 'denied'
+  if (e.reason?.includes('fail-closed')) return 'expired'
+  return 'blocked'
+}
+
+function stampOf(status: Status): { label: string; tone: 'allow' | 'deny' | 'review' } {
+  if (status === 'approved') return { label: 'APPROVED', tone: 'allow' }
+  if (status === 'denied') return { label: 'DENIED', tone: 'deny' }
+  if (status === 'expired') return { label: 'AUTO-DENIED', tone: 'review' }
+  return { label: 'BLOCKED', tone: 'deny' }
+}
+
+const STATUS_LABEL: Record<Status, string> = {
+  pending: 'HELD',
+  approved: 'ALLO',
+  denied: 'DENY',
+  blocked: 'BLOC',
+  expired: 'AUTO',
 }
 
 export function Checkpoint({ onBack }: Props) {
@@ -70,8 +164,6 @@ export function Checkpoint({ onBack }: Props) {
       )
     : null
 
-  // Drive the ferrofluid from live app state: idle pool → verdict colour,
-  // spike depth from risk score, field decay from the fail-closed countdown.
   useEffect(() => {
     if (!active || !verdict) {
       setFluid({ mode: 'idle', risk: 0, field: 1, surface: 'gate' })
@@ -114,7 +206,7 @@ export function Checkpoint({ onBack }: Props) {
             call: {
               id: String(a.id ?? i),
               agent: 'live-agent',
-              tool: 'shell',
+              tool: String(a.toolName ?? 'tool') as ToolCall['tool'],
               summary: String(a.inputSummary ?? a.toolName),
               payload: String(a.inputSummary ?? ''),
               requestedAt: String(a.timestamp ?? '').slice(11, 19),
@@ -126,6 +218,8 @@ export function Checkpoint({ onBack }: Props) {
             at: String(a.timestamp ?? '').slice(11, 19),
             score: Number(a.riskScore ?? 0),
             decidedBy: (a.decidedBy as 'auto' | 'human') ?? 'auto',
+            level: String(a.riskLevel ?? ''),
+            reason: a.reason ? String(a.reason) : undefined,
           })),
       )
     }
@@ -167,6 +261,7 @@ export function Checkpoint({ onBack }: Props) {
         }),
         score: verdict.score,
         decidedBy: 'human',
+        level: verdict.level,
       },
       ...prev,
     ])
@@ -184,15 +279,7 @@ export function Checkpoint({ onBack }: Props) {
     setAudit([])
   }
 
-  const startLive = async (
-    scenario:
-      | 'destructive'
-      | 'benign-http'
-      | 'borderline'
-      | 'adversarial'
-      | 'encoded'
-      | 'all',
-  ) => {
+  const startLive = async (scenario: Scenario) => {
     setMode('live')
     setBusy(true)
     setAudit([])
@@ -206,22 +293,69 @@ export function Checkpoint({ onBack }: Props) {
     await refreshLive()
   }
 
-  const pendingList =
-    mode === 'live'
-      ? livePending.map((p) => ({
+  const activity: ActivityItem[] = useMemo(() => {
+    const items: ActivityItem[] = []
+    if (mode === 'live') {
+      for (const p of livePending) {
+        items.push({
           id: p.call.id,
-          label: p.toolCall.summary,
-          agent: p.toolCall.agent,
+          at: (p.createdAt || '').slice(11, 19),
           tool: p.toolCall.tool,
+          summary: p.toolCall.summary,
+          score: p.verdict.score,
           level: p.verdict.level,
-        }))
-      : queue.map((c) => ({
+          status: 'pending',
+          actor: 'human',
+        })
+      }
+      for (const e of audit) {
+        items.push({
+          id: e.id,
+          at: e.at,
+          tool: e.call.tool,
+          summary: e.call.summary,
+          score: e.score,
+          level: e.level || inspect(e.call).level,
+          status: statusOf(e),
+          actor: e.decidedBy === 'human' ? 'human' : 'auto',
+          reason: e.reason,
+        })
+      }
+    } else {
+      for (const c of queue) {
+        const v = inspect(c)
+        items.push({
           id: c.id,
-          label: c.summary,
-          agent: c.agent,
+          at: c.requestedAt,
           tool: c.tool,
-          level: inspect(c).level,
-        }))
+          summary: c.summary,
+          score: v.score,
+          level: v.level,
+          status: 'pending',
+          actor: 'human',
+        })
+      }
+      for (const e of audit) {
+        items.push({
+          id: e.id,
+          at: e.at,
+          tool: e.call.tool,
+          summary: e.call.summary,
+          score: e.score,
+          level: e.level || inspect(e.call).level,
+          status: statusOf(e),
+          actor: 'human',
+          reason: e.reason,
+        })
+      }
+    }
+    return items
+  }, [mode, livePending, audit, queue])
+
+  const latest = audit[0]
+  const latestStatus = latest ? statusOf(latest) : null
+  const latestStamp = latestStatus ? stampOf(latestStatus) : null
+  const latestLevel = latest ? latest.level || inspect(latest.call).level : ''
 
   return (
     <section className="gate" aria-label="Agent checkpoint">
@@ -231,57 +365,58 @@ export function Checkpoint({ onBack }: Props) {
           Home
         </button>
         <span className="gate__logo">CHAPERONE</span>
-        <div className="gate__chips">
-          <button type="button" className="gate__chip" disabled={busy} onClick={() => void startLive('destructive')}>
-            Destructive
-          </button>
-          <button type="button" className="gate__chip" disabled={busy} onClick={() => void startLive('benign-http')}>
-            Benign
-          </button>
-          <button type="button" className="gate__chip" disabled={busy} onClick={() => void startLive('borderline')}>
-            Borderline
-          </button>
-          <button type="button" className="gate__chip" disabled={busy} onClick={() => void startLive('adversarial')}>
-            Adversarial
-          </button>
-          <button type="button" className="gate__chip" disabled={busy} onClick={() => void startLive('encoded')}>
-            Encoded
-          </button>
-          <button type="button" className="gate__chip gate__chip--active" disabled={busy} onClick={() => void startLive('all')}>
-            Run All
-          </button>
-          <button type="button" className="gate__chip" onClick={loadScenarios}>
-            Offline
-          </button>
+        <div className="gate__nav-status">
+          <span className="gate__nav-dot" />
+          <span className="mono">
+            {mode === 'live' ? 'INTERCEPTING · shell + http' : 'OFFLINE DEMO · scripted'}
+          </span>
         </div>
       </nav>
 
       <div className="gate__layout">
-        {pendingList.length > 0 && (
-          <aside className="gate__sidebar">
-            <p className="gate__sidebar-title">Pending Queue</p>
-            <div className="gate__queue">
-              {pendingList.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  className={
-                    p.id === (activeLive?.call.id ?? active?.id)
-                      ? `gate__queue-item gate__queue-item--active gate__queue-item--${p.level}`
-                      : `gate__queue-item gate__queue-item--${p.level}`
-                  }
-                  onClick={() => setActiveId(p.id)}
-                >
-                  <span className="gate__queue-agent">{p.agent}</span>
-                  <span className="gate__queue-label">{p.label}</span>
-                  <span className={`gate__queue-badge gate__queue-badge--${p.level}`}>
-                    {p.level}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </aside>
-        )}
+        <aside className="gate__rail gate__rail--scenarios">
+          <p className="gate__rail-title">Scenarios</p>
+          <p className="gate__rail-note">Send a tool call. Watch what Chaperone does.</p>
+          <div className="gate__scenarios">
+            {SCENARIO_META.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                className={`gate__scenario gate__scenario--${s.tone}`}
+                disabled={busy}
+                onClick={() => void startLive(s.key)}
+              >
+                <span className={`gate__scenario-tag gate__scenario-tag--${s.tone}`}>
+                  {s.tag}
+                </span>
+                <span className="gate__scenario-title">{s.title}</span>
+                <span className="gate__scenario-outcome">{s.outcome}</span>
+                <span className="gate__scenario-detail">{s.detail}</span>
+              </button>
+            ))}
+            <button
+              type="button"
+              className="gate__scenario gate__scenario--all"
+              disabled={busy}
+              onClick={() => void startLive('all')}
+            >
+              <span className="gate__scenario-tag gate__scenario-tag--all">All</span>
+              <span className="gate__scenario-title">Run All</span>
+              <span className="gate__scenario-outcome">Full sweep</span>
+              <span className="gate__scenario-detail">blocked → runs → two reviews</span>
+            </button>
+            <button
+              type="button"
+              className="gate__scenario gate__scenario--offline"
+              onClick={loadScenarios}
+            >
+              <span className="gate__scenario-tag gate__scenario-tag--offline">No server</span>
+              <span className="gate__scenario-title">Offline Mode</span>
+              <span className="gate__scenario-outcome">Scripted queue</span>
+              <span className="gate__scenario-detail">works without the API</span>
+            </button>
+          </div>
+        </aside>
 
         <main className="gate__main">
           {active && verdict ? (
@@ -294,6 +429,8 @@ export function Checkpoint({ onBack }: Props) {
                 <div className="gate__tool-pill">{active.tool}</div>
                 <span className="gate__card-time">{active.requestedAt}</span>
               </div>
+
+              <div className="gate__held mono">HELD FOR YOUR CALL</div>
 
               <div className="gate__gauge-wrap">
                 <div className="gate__gauge">
@@ -343,7 +480,9 @@ export function Checkpoint({ onBack }: Props) {
 
               {verdict.findings.length > 0 && (
                 <div className="gate__findings">
-                  <p className="gate__findings-title">Findings</p>
+                  <p className="gate__findings-title">
+                    Findings · {verdict.findings.length}
+                  </p>
                   {verdict.findings.map((f, i) => (
                     <div key={f.id} className="gate__finding">
                       <span className="gate__finding-num">{String(i + 1).padStart(2, '0')}</span>
@@ -373,33 +512,121 @@ export function Checkpoint({ onBack }: Props) {
                 </button>
               </div>
             </div>
+          ) : latest && latestStamp ? (
+            <div className={`gate__card gate__card--outcome gate__card--${latestStamp.tone}`} key={latest.id}>
+              <span className={`gate__seal gate__seal--${latestLevel}`} aria-hidden>
+                {latestLevel}
+              </span>
+
+              <div className="gate__card-header">
+                <div className="gate__tool-pill">{latest.call.tool}</div>
+                <span className="gate__card-time">{latest.at}</span>
+              </div>
+
+              <div className="gate__outcome">
+                <span className={`gate__outcome-stamp gate__outcome-stamp--${latestStamp.tone}`}>
+                  {latestStamp.label}
+                </span>
+                <span className="gate__outcome-actor mono">
+                  {latest.decidedBy === 'human' ? 'by you' : 'by chaperone'}
+                </span>
+              </div>
+
+              <div className="gate__gauge-wrap">
+                <div className="gate__gauge">
+                  <div
+                    className={`gate__gauge-fill gate__gauge-fill--${latestLevel}`}
+                    style={{ width: `${latest.score}%` }}
+                  />
+                </div>
+                <span className={`gate__gauge-score gate__gauge-score--${latestLevel}`}>
+                  {latest.score}
+                </span>
+              </div>
+
+              <h2 className="gate__heading">
+                Agent tried to run{' '}
+                <span className="gate__heading-tool">{latest.call.tool}</span>
+              </h2>
+
+              <p className="gate__verdict">
+                {latestStatus === 'blocked' &&
+                  'Chaperone blocked this before it ran — the agent never touched your machine.'}
+                {latestStatus === 'expired' &&
+                  'No human answered in time, so Chaperone failed closed and denied the call.'}
+                {latestStatus === 'denied' &&
+                  'You denied this call at the checkpoint. It was never executed.'}
+                {latestStatus === 'approved' &&
+                  'You approved this call at the checkpoint; it executed normally.'}
+              </p>
+
+              <div className="gate__payload">
+                <p className="gate__payload-label">Tool call</p>
+                <pre className="gate__payload-code">{latest.call.payload}</pre>
+              </div>
+
+              {latest.reason && (
+                <div className="gate__outcome-reason">
+                  <span className="gate__outcome-reason-label">Reason</span>
+                  <span className="mono">{latest.reason}</span>
+                </div>
+              )}
+            </div>
           ) : (
-            <div className="gate__empty">
-              <div className="gate__empty-icon">&#10003;</div>
-              <p className="gate__empty-text">No pending tool calls</p>
-              <p className="gate__empty-sub">Start a scenario to see the checkpoint in action.</p>
-              <button type="button" className="gate__btn gate__btn--allow" onClick={() => void startLive('all')}>
-                Run All Scenarios
-              </button>
+            <div className="gate__brief">
+              <p className="gate__brief-kicker mono">HUMAN-IN-THE-LOOP FIREWALL</p>
+              <h2 className="gate__brief-title">
+                Chaperone sits between your agent and your machine.
+              </h2>
+              <p className="gate__brief-sub">
+                Every tool call the agent wants to run is scored <em>before</em> it executes.
+                You decide the risky ones. Chaperone blocks the dangerous ones on its own — and
+                if no one answers, it fails closed.
+              </p>
+              <div className="gate__policy">
+                <div className="gate__policy-item gate__policy-item--allow">
+                  <span className="gate__policy-tag">Safe</span>
+                  <strong>runs automatically</strong>
+                </div>
+                <div className="gate__policy-item gate__policy-item--review">
+                  <span className="gate__policy-tag">Risky</span>
+                  <strong>freezes for your call</strong>
+                </div>
+                <div className="gate__policy-item gate__policy-item--deny">
+                  <span className="gate__policy-tag">Dangerous</span>
+                  <strong>blocked by Chaperone</strong>
+                </div>
+              </div>
+              <p className="gate__brief-hint">&larr; Pick a scenario to begin.</p>
             </div>
           )}
+        </main>
 
-          {audit.length > 0 && (
-            <div className="gate__log">
-              <p className="gate__log-title">Decision Log</p>
-              {audit.slice(0, 8).map((e) => (
-                <div key={e.id} className="gate__log-row">
-                  <span className="gate__log-time">{e.at}</span>
-                  <span className={`gate__log-badge gate__log-badge--${e.decision}`}>
-                    {e.decision}
-                  </span>
-                  <span className="gate__log-summary">{e.call.summary.slice(0, 50)}</span>
-                  {e.decidedBy === 'auto' && <span className="gate__log-auto">auto</span>}
+        <aside className="gate__rail gate__rail--log">
+          <p className="gate__rail-title">Interception Log</p>
+          {activity.length === 0 ? (
+            <p className="gate__rail-empty">Nothing intercepted yet.</p>
+          ) : (
+            <div className="gate__events">
+              {activity.map((a) => (
+                <div key={a.id} className={`gate__event gate__event--${a.status}`}>
+                  <div className="gate__event-top">
+                    <span className="gate__event-time mono">{a.at}</span>
+                    <span className="gate__event-tool mono">{a.tool}</span>
+                    <span className={`gate__event-status gate__event-status--${a.status}`}>
+                      {STATUS_LABEL[a.status]}
+                    </span>
+                    <span className="gate__event-score mono">{a.score}</span>
+                  </div>
+                  <span className="gate__event-summary">{a.summary}</span>
+                  {a.status !== 'pending' && (
+                    <span className="gate__event-actor mono">{a.actor}</span>
+                  )}
                 </div>
               ))}
             </div>
           )}
-        </main>
+        </aside>
       </div>
     </section>
   )
