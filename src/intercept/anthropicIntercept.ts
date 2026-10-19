@@ -1,9 +1,8 @@
+import { adjudicate } from './adjudicate'
 import { inspectPending } from './mapCall'
 import type {
   AnthropicToolDefinition,
   AuditRecord,
-  InterceptDecision,
-  Outcome,
   PendingToolCall,
   RunWithChaperoneOptions,
 } from './types'
@@ -26,7 +25,7 @@ type AnthropicResponse = {
   stop_reason: string | null
 }
 
-function summarizeInput(input: Record<string, unknown>): string {
+export function summarizeInput(input: Record<string, unknown>): string {
   if (typeof input.command === 'string') return input.command.slice(0, 160)
   if (typeof input.url === 'string') return String(input.url).slice(0, 160)
   return JSON.stringify(input).slice(0, 160)
@@ -202,9 +201,14 @@ export async function runWithChaperone(
         rawBlock: block,
       }
 
-      const { toolCall, verdict } = options.inspectPending
-        ? await options.inspectPending(pending)
-        : inspectPending(pending)
+      const adjudication = await adjudicate(pending, {
+        inspect: options.inspectPending ?? ((call) => inspectPending(call)),
+        onReview: options.onReview,
+        executeTool: options.executeTool,
+      })
+      const { toolCall, verdict, outcome, decision, decidedBy, reason } =
+        adjudication
+
       const baseAudit: BaseAudit = {
         id: `${pending.id}-${Date.now()}`,
         timestamp: new Date().toISOString(),
@@ -212,24 +216,19 @@ export async function runWithChaperone(
         inputSummary: summarizeInput(pending.input),
         riskScore: verdict.score,
         riskLevel: verdict.level,
-        decision:
-          verdict.recommendation === 'allow'
-            ? 'allow'
-            : verdict.recommendation === 'deny'
-              ? 'deny'
-              : 'review',
-        decidedBy: verdict.recommendation === 'review' ? 'human' : 'auto',
+        decision,
+        decidedBy,
       }
 
-      // Policy deny — the call never reaches execution.
-      if (verdict.recommendation === 'deny') {
-        emitAudit({
-          ...baseAudit,
-          decision: 'deny',
-          decidedBy: 'auto',
-          finalDecision: 'deny',
-          outcome: 'blocked_by_policy',
+      emitAudit({ ...baseAudit, finalDecision: decision, outcome, reason })
+
+      if (outcome === 'executed') {
+        toolResults.push({
+          type: 'tool_result',
+          tool_use_id: pending.id,
+          content: JSON.stringify(adjudication.result).slice(0, 8000),
         })
+      } else if (outcome === 'blocked_by_policy') {
         toolResults.push({
           type: 'tool_result',
           tool_use_id: pending.id,
@@ -242,103 +241,41 @@ export async function runWithChaperone(
             riskScore: verdict.score,
           }),
         })
-        continue
-      }
-
-      // Review tier — suspend for a human. A denial here (human or fail-closed)
-      // also never reaches execution.
-      if (verdict.recommendation === 'review') {
-        const resolution = await options.onReview(pending)
-        if (resolution.decision === 'deny') {
-          const failClosed = resolution.decidedBy === 'auto'
-          emitAudit({
-            ...baseAudit,
-            decision: 'deny',
-            decidedBy: resolution.decidedBy,
-            finalDecision: 'deny',
-            outcome: failClosed ? 'failed_closed' : 'denied_by_human',
-            reason: resolution.reason,
-          })
-          toolResults.push({
-            type: 'tool_result',
-            tool_use_id: pending.id,
-            is_error: true,
-            content: JSON.stringify({
-              blocked: true,
-              by: failClosed ? 'chaperone-fail-closed' : 'chaperone-human',
-              reason: failClosed
-                ? `Fail-closed: ${
-                    resolution.reason ??
-                    'no human response within the review window'
-                  }.`
-                : 'Human denied this tool call at the checkpoint.',
-              tool: toolCall.tool,
-            }),
-          })
-          continue
-        }
-      }
-
-      // Approved — execute exactly once, then record what *actually* happened.
-      let outcome: Outcome = 'executed'
-      let finalDecision: InterceptDecision = 'allow'
-      let reason: string | undefined
-      let executed: unknown
-
-      try {
-        executed = await options.executeTool(pending.toolName, pending.input)
-        if (
-          executed &&
-          typeof executed === 'object' &&
-          (executed as { blocked?: unknown }).blocked === true
-        ) {
-          // Defense in depth: the scorer approved it, the hard allowlist refused.
-          outcome = 'blocked_by_allowlist'
-          finalDecision = 'deny'
-          reason = String(
-            (executed as { reason?: unknown }).reason ??
-              'blocked by execution allowlist',
-          )
-        } else if (
-          executed &&
-          typeof executed === 'object' &&
-          (executed as { ok?: unknown }).ok === false
-        ) {
-          outcome = 'failed'
-          reason = String(
-            (executed as { error?: unknown }).error ?? 'tool execution failed',
-          )
-        }
-      } catch (err) {
-        outcome = 'failed'
-        reason = err instanceof Error ? err.message : String(err)
-      }
-
-      emitAudit({
-        ...baseAudit,
-        decision: finalDecision,
-        decidedBy: verdict.recommendation === 'review' ? 'human' : 'auto',
-        finalDecision,
-        outcome,
-        reason,
-      })
-
-      if (outcome === 'executed') {
+      } else if (outcome === 'blocked_by_allowlist') {
         toolResults.push({
           type: 'tool_result',
           tool_use_id: pending.id,
-          content: JSON.stringify(executed).slice(0, 8000),
+          is_error: true,
+          content: JSON.stringify({
+            blocked: true,
+            by: 'chaperone-allowlist',
+            reason,
+            tool: toolCall.tool,
+          }),
+        })
+      } else if (outcome === 'denied_by_human' || outcome === 'failed_closed') {
+        const failClosed = outcome === 'failed_closed'
+        toolResults.push({
+          type: 'tool_result',
+          tool_use_id: pending.id,
+          is_error: true,
+          content: JSON.stringify({
+            blocked: true,
+            by: failClosed ? 'chaperone-fail-closed' : 'chaperone-human',
+            reason: failClosed
+              ? `Fail-closed: ${
+                  reason ?? 'no human response within the review window'
+                }.`
+              : 'Human denied this tool call at the checkpoint.',
+            tool: toolCall.tool,
+          }),
         })
       } else {
         toolResults.push({
           type: 'tool_result',
           tool_use_id: pending.id,
           is_error: true,
-          content: JSON.stringify(
-            outcome === 'blocked_by_allowlist'
-              ? { blocked: true, by: 'chaperone-allowlist', reason, tool: toolCall.tool }
-              : { error: reason ?? outcome },
-          ),
+          content: JSON.stringify({ error: reason ?? outcome }),
         })
       }
     }

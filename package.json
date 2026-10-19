@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "demo:acceptance": "node scripts/acceptance.mjs",
+    "mcp:demo": "node scripts/mcp-demo.mjs",
     "eval": "node scripts/eval.mjs",
     "bench": "node scripts/bench.mjs",
     "models:fetch": "node scripts/fetch-model.mjs"

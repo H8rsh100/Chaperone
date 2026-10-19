@@ -13,6 +13,7 @@ import {
   resolveDecision,
 } from './gateStore'
 import { ledgerPath, resetLedger, verifyChain } from './audit/ledger'
+import { callMcpTool, mcpTools } from './mcp/server'
 
 function readJson(req: import('http').IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
@@ -104,6 +105,23 @@ export function chaperoneApiPlugin(): Plugin {
             clearGate()
             resetLedger()
             return send(res, 200, { ok: true })
+          }
+
+          // MCP: the tool manifest the stdio gateway advertises to clients.
+          if (req.method === 'GET' && url.startsWith('/api/chaperone/mcp/tools')) {
+            return send(res, 200, { tools: mcpTools() })
+          }
+
+          // MCP: gate and execute one tool call. In-band errors (blocked calls)
+          // keep HTTP 200 — MCP encodes failure in the result, not the status.
+          if (req.method === 'POST' && url.startsWith('/api/chaperone/mcp/call')) {
+            const body = (await readJson(req)) as {
+              name?: string
+              arguments?: Record<string, unknown>
+            }
+            if (!body.name) return send(res, 400, { error: 'name required' })
+            const result = await callMcpTool(body.name, body.arguments ?? {})
+            return send(res, 200, result)
           }
 
           // Score an arbitrary hypothetical tool call WITHOUT executing it.
