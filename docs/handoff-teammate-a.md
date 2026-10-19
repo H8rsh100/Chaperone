@@ -22,7 +22,6 @@ Key existing files:
 - `src/lib/inspect.ts` — the scoring engine (weights + thresholds).
 - `src/lib/semantic.ts` — offline hashing embedder (to be replaced by the lead's ONNX backend).
 - `server/chaperoneApiPlugin.ts` — the HTTP API (`/inspect` scores without executing).
-- `scripts/eval.mjs` — the old toy harness (14 cases, 100%) — being superseded.
 - `scripts/metrics.mjs` — pure metrics math (confusion, recall@FPR, ROC-AUC, Wilson CI, percentiles, Brier) + `scripts/metrics.test.mjs`.
 - `scripts/corpus.mjs` — 35-case labeled baseline corpus you will extend.
 - `scripts/bench.mjs` (`npm run bench`) — reports recall/precision/FPR, AUC, recall@FPR, latency, per-category, and known misses; writes `docs/bench-output.json`.

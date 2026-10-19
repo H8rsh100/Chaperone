@@ -6,13 +6,20 @@ import { chaperoneToolDefs, toolRegistry } from './toolRegistry'
 import { inspectCallAsync, semanticStatus, warmup as warmupSemantic } from './scoring'
 import {
   clearGate,
-  getAuditLog,
   listPending,
   pushAudit,
+  readAuditLog,
   requestHumanDecision,
   resolveDecision,
 } from './gateStore'
 import { ledgerPath, resetLedger, verifyChain } from './audit/ledger'
+import {
+  anchorLedger,
+  anchorsPath,
+  readAnchors,
+  resetAnchors,
+  verifyAnchors,
+} from './audit/anchor'
 import { callMcpTool, mcpTools } from './mcp/server'
 
 function readJson(req: import('http').IncomingMessage): Promise<unknown> {
@@ -60,13 +67,16 @@ export function chaperoneApiPlugin(): Plugin {
 
         if (req.method === 'GET' && (url === '/healthz' || url.startsWith('/healthz?'))) {
           const chain = verifyChain()
+          const anchors = verifyAnchors()
           const semantic = semanticStatus()
-          return send(res, chain.ok ? 200 : 503, {
-            ok: chain.ok,
+          return send(res, chain.ok && anchors.ok ? 200 : 503, {
+            ok: chain.ok && anchors.ok,
             model: semantic.state,
             backend: semantic.backend,
             chain: chain.ok ? 'verified' : 'broken',
             entries: chain.entries,
+            anchored: anchors.count,
+            anchors: anchors.ok ? 'verified' : 'broken',
           })
         }
 
@@ -74,7 +84,9 @@ export function chaperoneApiPlugin(): Plugin {
 
         try {
           if (req.method === 'GET' && url.startsWith('/api/chaperone/pending')) {
-            return send(res, 200, { pending: listPending(), audit: getAuditLog() })
+            // Audit is served from the durable, hash-chained ledger — not the
+            // in-memory cache — so what the UI shows is what actually persisted.
+            return send(res, 200, { pending: listPending(), audit: readAuditLog() })
           }
 
           if (req.method === 'POST' && url.startsWith('/api/chaperone/decide')) {
@@ -93,18 +105,39 @@ export function chaperoneApiPlugin(): Plugin {
 
           if (req.method === 'POST' && url.startsWith('/api/chaperone/reset')) {
             clearGate()
+            resetLedger()
+            resetAnchors()
             return send(res, 200, { ok: true })
           }
 
-          // Re-walk the tamper-evident audit chain.
+          // Re-walk the tamper-evident audit chain and verify signed anchors.
           if (req.method === 'GET' && url.startsWith('/api/chaperone/ledger/verify')) {
-            return send(res, 200, { ...verifyChain(), path: ledgerPath() })
+            return send(res, 200, {
+              ...verifyChain(),
+              anchors: verifyAnchors(),
+              path: ledgerPath(),
+            })
           }
 
           if (req.method === 'POST' && url.startsWith('/api/chaperone/ledger/reset')) {
             clearGate()
             resetLedger()
+            resetAnchors()
             return send(res, 200, { ok: true })
+          }
+
+          // Merkle-root the chain and sign the root with the Ed25519 key.
+          if (req.method === 'POST' && url.startsWith('/api/chaperone/ledger/anchor')) {
+            const anchor = anchorLedger()
+            return send(res, 200, { ok: true, anchor, anchors: verifyAnchors() })
+          }
+
+          if (req.method === 'GET' && url.startsWith('/api/chaperone/ledger/anchors')) {
+            return send(res, 200, {
+              anchors: readAnchors(),
+              verification: verifyAnchors(),
+              path: anchorsPath(),
+            })
           }
 
           // MCP: the tool manifest the stdio gateway advertises to clients.

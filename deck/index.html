@@ -168,12 +168,14 @@
   <div class="kicker">Prove it happened</div>
   <div class="term">
     <div><span class="c">$</span> curl /healthz</div>
-    <div><span class="g">{"ok":true,"model":"warm","backend":"onnx-all-MiniLM-L6-v2","chain":"verified"}</span></div>
+    <div><span class="g">{"ok":true,"chain":"verified","anchored":1,"anchors":"verified"}</span></div>
+    <div><span class="c">$</span> POST /ledger/anchor</div>
+    <div><span class="g">Merkle root 007e403d… signed · ed25519</span></div>
     <div>&nbsp;</div>
-    <div><span class="c">$</span> # edit one byte of history, re-verify</div>
-    <div><span class="r">{"ok":false,"chain":"broken","at":4}</span></div>
+    <div><span class="c">$</span> # edit one hash of history, re-verify</div>
+    <div><span class="r">{"chain":"broken","anchors":"Merkle root mismatch"}</span></div>
   </div>
-  <p class="muted">Append-only · each entry hashes the last · approvals are signed, call-bound, single-use.</p>
+  <p class="muted">Append-only · each entry hashes the last · Merkle root signed with Ed25519 · approvals signed, call-bound, single-use.</p>
 </section>
 
 <!-- 7 close -->

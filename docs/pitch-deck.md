@@ -93,12 +93,14 @@ keyboard, no overlapping talk.
 
 ## Slide 6 — Prove it happened (7:00–9:30) — *C*
 
-**On screen:** `GET /healthz` → `{"ok":true,"model":"warm","backend":"onnx-all-MiniLM-L6-v2","chain":"verified"}`; then tamper one ledger byte → `BROKEN AT ENTRY n`.
+**On screen:** `GET /healthz` → `{"ok":true,"chain":"verified","anchored":1,"anchors":"verified"}`. Then `POST /ledger/anchor` → signed Merkle root. Then tamper one ledger hash → `chain:"broken"`, `anchors:"Merkle root mismatch"`.
 
 **Verbatim (C):**
-> "Every decision — including the ones Chaperone makes on its own — is written to an append-only ledger where each entry hashes the one before it. Approvals are signed, call-bound, single-use tokens: a token for call A can't approve call B, and it can't be replayed.
+> "Every decision — including the ones Chaperone makes on its own — is written to an append-only ledger where each entry hashes the one before it. Then we **Merkle-root the chain and sign that root with Ed25519**. An auditor with only the public key can prove offline that this history existed and hasn't been rewritten.
 >
-> Here's the proof. The health check says the chain verifies. Now I change **one byte** of history — and the whole tail is invalidated. You cannot rewrite what the agent did. That's the compliance story."
+> Approvals are the same idea at the call level: signed, call-bound, single-use tokens. A token for call A can't approve call B, and it can't be replayed.
+>
+> Here's the proof. The health check says the chain and the anchor verify. Now I change **one hash** of history — the chain breaks *and* the signed Merkle root no longer matches. You cannot rewrite what the agent did. That's the compliance story."
 
 ## Slide 7 — Close (9:30–10:30) — *A*
 
@@ -134,7 +136,7 @@ keyboard, no overlapping talk.
 1. `npm run build` clean, `npm test` green.
 2. `npm run dev -- --host 127.0.0.1 --port 5174 --strictPort`; wait for `/healthz` → `model: warm`.
 3. `npm run bench` green (writes `docs/bench-output.json`).
-4. Ledger file on disk; tamper demo pre-staged.
+4. `POST /api/chaperone/ledger/anchor` once so the terminator shows `anchored:1`; tamper demo pre-staged.
 5. Two laptops, hotspot, charger + power strip; repo on USB **and** cloud.
 6. `deck/index.html` open full-screen; timer visible to A only.
 7. Two full timed rehearsals at ≤15:00 with clean handoffs.

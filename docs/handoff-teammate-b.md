@@ -19,9 +19,9 @@ Chaperone intercepts an AI agent's tool calls and risk-scores them
 
 Key existing files:
 - `scripts/acceptance.mjs` — drives all five scenarios over the HTTP API.
-- `server/chaperoneApiPlugin.ts` — the API (`/run`, `/pending`, `/decide`, `/reset`, `/inspect`).
+- `server/chaperoneApiPlugin.ts` — the API (`/run`, `/pending`, `/decide`, `/reset`, `/inspect`, `/healthz`, `/ledger/*`, `/mcp/*`).
 - `src/components/Checkpoint.tsx` — the operator UI. **Do not restyle it** — the lead owns theming.
-- `package.json` — npm scripts (`dev`, `build`, `test`, `demo:acceptance`, `eval`).
+- `package.json` — npm scripts (`dev`, `build`, `test`, `demo:acceptance`, `mcp:demo`, `bench`).
 
 ### Demo scenarios and their expected outcomes
 | Scenario | Expected |

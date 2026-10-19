@@ -5,7 +5,7 @@ import type {
 } from '../src/intercept/types'
 import type { ToolCall, Verdict } from '../src/lib/inspect'
 import { inspectPending } from '../src/intercept/mapCall'
-import { appendAudit } from './audit/ledger'
+import { appendAudit, readLedger } from './audit/ledger'
 import { inspectCallAsync } from './scoring'
 import {
   callHashOf,
@@ -54,6 +54,18 @@ export function listPending(): GatePendingItem[] {
 
 export function getAuditLog() {
   return [...auditLog]
+}
+
+/**
+ * Durable audit trail, newest first, read straight from the hash-chained ledger
+ * rather than the in-memory cache. This is the source the UI renders.
+ */
+export function readAuditLog(limit = 200): Array<Record<string, unknown>> {
+  return readLedger()
+    .filter((e) => e.kind === 'decision')
+    .map((e) => e.payload as Record<string, unknown>)
+    .reverse()
+    .slice(0, limit)
 }
 
 export function pushAudit(record: Record<string, unknown>) {
