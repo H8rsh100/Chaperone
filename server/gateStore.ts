@@ -6,6 +6,7 @@ import type {
 import type { ToolCall, Verdict } from '../src/lib/inspect'
 import { inspectPending } from '../src/intercept/mapCall'
 import { appendAudit } from './audit/ledger'
+import { inspectCallAsync } from './scoring'
 import {
   callHashOf,
   consumeToken,
@@ -90,6 +91,14 @@ export function requestHumanDecision(
     callHash,
     decisionToken: token,
   }
+
+  // Upgrade to the embedding second opinion once the model is warm. Never
+  // blocks the gate: the sync verdict is shown immediately and swapped in place.
+  void inspectCallAsync(toolCall)
+    .then((augmented) => {
+      item.verdict = augmented
+    })
+    .catch(() => {})
 
   return new Promise((resolve) => {
     const timer = setTimeout(() => {

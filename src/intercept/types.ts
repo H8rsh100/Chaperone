@@ -1,3 +1,5 @@
+import type { ToolCall, Verdict } from '../lib/inspect'
+
 export type InterceptDecision = 'allow' | 'deny'
 
 /**
@@ -34,6 +36,14 @@ export type ToolCallHandler = (
   call: PendingToolCall,
 ) => Promise<ReviewResolution>
 
+/**
+ * Pluggable scorer. The default is the synchronous engine; the server injects an
+ * embedding-augmented asynchronous scorer without core code depending on it.
+ */
+export type AsyncInspector = (
+  call: PendingToolCall,
+) => Promise<{ toolCall: ToolCall; verdict: Verdict }>
+
 export interface AuditRecord {
   id: string
   timestamp: string
@@ -64,6 +74,8 @@ export interface RunWithChaperoneOptions {
   onReview: ToolCallHandler
   /** Optional hook after every adjudicated call */
   onAudit?: (record: AuditRecord) => void
+  /** Optional async scorer (e.g. server-side embeddings). Defaults to the sync engine. */
+  inspectPending?: AsyncInspector
   /** Demo mode: skip Anthropic and use scripted tool_use turns */
   demoScenario?:
     | 'destructive'

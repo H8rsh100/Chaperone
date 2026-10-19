@@ -18,6 +18,7 @@ export type FindingId =
   | 'injection'
   | 'path-escape'
   | 'semantic-injection'
+  | 'onnx-semantic'
 
 export interface Finding {
   id: FindingId
@@ -134,6 +135,15 @@ export function inspect(call: ToolCall): Verdict {
     })
   }
 
+  return finalizeVerdict(findings)
+}
+
+/**
+ * Turn a set of findings into a verdict. Exposed so additional scorers (e.g.
+ * the server-side transformer second opinion) can contribute findings and reuse
+ * the exact same weighting and thresholds as the synchronous engine.
+ */
+export function finalizeVerdict(findings: Finding[]): Verdict {
   const score = Math.min(
     100,
     findings.reduce((s, f) => s + f.weight, 0),

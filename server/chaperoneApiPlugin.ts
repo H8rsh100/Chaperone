@@ -1,7 +1,9 @@
 import type { Plugin } from 'vite'
 import { runWithChaperone } from '../src/intercept/anthropicIntercept'
-import { inspectPending } from '../src/intercept/mapCall'
+import { pendingToToolCall } from '../src/intercept/mapCall'
+import type { AsyncInspector } from '../src/intercept/types'
 import { chaperoneToolDefs, toolRegistry } from './toolRegistry'
+import { inspectCallAsync, semanticStatus, warmup as warmupSemantic } from './scoring'
 import {
   clearGate,
   getAuditLog,
@@ -38,12 +40,35 @@ function send(
   res.end(JSON.stringify(body))
 }
 
+const inspectAsync: AsyncInspector = async (call) => {
+  const toolCall = pendingToToolCall(call)
+  const verdict = await inspectCallAsync(toolCall)
+  return { toolCall, verdict }
+}
+
 export function chaperoneApiPlugin(): Plugin {
   return {
     name: 'chaperone-api',
     configureServer(server) {
+      // Warm the embedding model in the background so the first demo call does
+      // not pay the load cost. Falls back silently if the model is unavailable.
+      void warmupSemantic()
+
       server.middlewares.use(async (req, res, next) => {
         const url = req.url ?? ''
+
+        if (req.method === 'GET' && (url === '/healthz' || url.startsWith('/healthz?'))) {
+          const chain = verifyChain()
+          const semantic = semanticStatus()
+          return send(res, chain.ok ? 200 : 503, {
+            ok: chain.ok,
+            model: semantic.state,
+            backend: semantic.backend,
+            chain: chain.ok ? 'verified' : 'broken',
+            entries: chain.entries,
+          })
+        }
+
         if (!url.startsWith('/api/chaperone')) return next()
 
         try {
@@ -89,7 +114,7 @@ export function chaperoneApiPlugin(): Plugin {
               input?: Record<string, unknown>
             }
             if (!body.toolName) return send(res, 400, { error: 'toolName required' })
-            const { toolCall, verdict } = inspectPending({
+            const { toolCall, verdict } = await inspectAsync({
               id: 'inspect',
               toolName: body.toolName,
               input: body.input ?? {},
@@ -137,6 +162,7 @@ export function chaperoneApiPlugin(): Plugin {
                 apiKey: useLive ? apiKey : undefined,
                 demoScenario: useLive ? undefined : scenario,
                 tools: chaperoneToolDefs,
+                inspectPending: inspectAsync,
                 onReview: async (call) => requestHumanDecision(call),
                 onAudit: (record) => pushAudit({ ...record }),
                 executeTool: async (name, input) => {

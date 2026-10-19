@@ -202,7 +202,9 @@ export async function runWithChaperone(
         rawBlock: block,
       }
 
-      const { toolCall, verdict } = inspectPending(pending)
+      const { toolCall, verdict } = options.inspectPending
+        ? await options.inspectPending(pending)
+        : inspectPending(pending)
       const baseAudit: BaseAudit = {
         id: `${pending.id}-${Date.now()}`,
         timestamp: new Date().toISOString(),

@@ -18,7 +18,7 @@
 
 export type SemanticSeverity = 'medium' | 'high'
 
-interface Exemplar {
+export interface Exemplar {
   label: string
   severity: SemanticSeverity
   text: string
@@ -42,7 +42,7 @@ const DIM = 512
 
 /** Curated archetypes. Kept small and general on purpose: this is a second
  *  opinion on intent, not a signature list. */
-const EXEMPLARS: Exemplar[] = [
+export const EXEMPLARS: Exemplar[] = [
   {
     label: 'instruction-override',
     severity: 'high',

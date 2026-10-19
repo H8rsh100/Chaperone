@@ -111,8 +111,9 @@ This is a 30-second live beat — make the output legible at a distance.
 - Commit directly to `main`, force-push, or add secrets.
 
 ## Blocked on
-- Lead's P0-3 (hash-chained `ledger.ts` with `verifyChain`) for D3.
-- Lead's `/healthz` route for D4's `HEALTHCHECK`.
+- **(resolved)** `ledger.ts` + `verifyChain` now exist — D3 can proceed.
+- **(resolved)** `GET /healthz` now returns `{ ok, model, backend, chain, entries }` —
+  use it for the D4 `HEALTHCHECK`.
 
 ## Runbook
 ```powershell

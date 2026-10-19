@@ -10,9 +10,11 @@
     "test": "vitest run",
     "demo:acceptance": "node scripts/acceptance.mjs",
     "eval": "node scripts/eval.mjs",
-    "bench": "node scripts/bench.mjs"
+    "bench": "node scripts/bench.mjs",
+    "models:fetch": "node scripts/fetch-model.mjs"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.3.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
