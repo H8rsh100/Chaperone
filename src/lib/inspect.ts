@@ -19,6 +19,7 @@ export type FindingId =
   | 'path-escape'
   | 'semantic-injection'
   | 'onnx-semantic'
+  | 'taint-flow'
 
 export interface Finding {
   id: FindingId

@@ -22,6 +22,7 @@ type Scenario =
   | 'borderline'
   | 'adversarial'
   | 'encoded'
+  | 'indirect-injection'
   | 'all'
 
 type AuditEntry = {
@@ -100,6 +101,14 @@ const SCENARIO_META: Array<{
     tag: 'Dangerous',
     outcome: 'Allowlist blocks it',
     detail: 'base64 exfil through a pipe',
+    tone: 'deny',
+  },
+  {
+    key: 'indirect-injection',
+    title: 'Indirect',
+    tag: 'Sleeper',
+    outcome: 'Caught by taint tracking',
+    detail: 'fetched page → “harmless” echo',
     tone: 'deny',
   },
   {

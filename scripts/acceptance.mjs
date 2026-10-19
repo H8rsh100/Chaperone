@@ -73,6 +73,7 @@ async function main() {
   await runScenario('borderline')
   await runScenario('adversarial')
   await runScenario('encoded')
+  await runScenario('indirect-injection')
   console.log('\nAcceptance API passes complete. Record the UI screen capture next.')
 }
 

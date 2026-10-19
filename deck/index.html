@@ -118,17 +118,18 @@
 </section>
 
 <!-- 3 architecture -->
-<section class="slide" data-notes="ARCHITECTURE (A → B). Rules catch known attacks in µs. MiniLM embeddings catch paraphrases. LLM is off the hot path. Allowlist is the backstop. Then hand to B for numbers.">
-  <div class="kicker">Three layers, one decision</div>
+<section class="slide" data-notes="ARCHITECTURE (A → B). Rules catch known attacks in µs. MiniLM embeddings catch paraphrases. The provenance sentinel catches indirect injection — data from an untrusted page reaching a shell/db/email sink. LLM is off the hot path. Allowlist is the backstop. Then hand to B for numbers.">
+  <div class="kicker">Four layers, one decision</div>
   <div class="flow">
     <span class="node">rules <span class="muted">µs</span></span><span class="arrow">→</span>
     <span class="node hot">embeddings <span class="muted">MiniLM 384-d</span></span><span class="arrow">→</span>
     <span class="node">LLM judge <span class="muted">off hot-path</span></span><span class="arrow">→</span>
+    <span class="node hot">provenance sentinel <span class="muted">taint</span></span><span class="arrow">→</span>
     <span class="node">policy <span class="muted">allow / review / deny</span></span><span class="arrow">→</span>
     <span class="node">execution allowlist</span><span class="arrow">→</span>
     <span class="node hot">hash-chained ledger</span>
   </div>
-  <p class="muted">Deterministic first. A real model second, fully offline. Human in the loop for ambiguity. A hard allowlist as the backstop.</p>
+  <p class="muted">Deterministic first. A real model second, fully offline. A sentinel that tracks <em>where the data came from</em>. Human in the loop for ambiguity. A hard allowlist as the backstop.</p>
 </section>
 
 <!-- 4 evidence -->
@@ -151,14 +152,15 @@
 </section>
 
 <!-- 5 demo -->
-<section class="slide" data-notes="DEMO (B drives, C narrates). LIVE, not recorded. If a call stalls, fall back to the same live local fixture — never a video.">
-  <div class="kicker">Live demo · five beats</div>
+<section class="slide" data-notes="DEMO (B drives, C narrates). LIVE, not recorded. Beat 6 is the novelty: a page plants a canary, the model runs a harmless echo, and Chaperone blocks it on provenance — no keyword fires. If a call stalls, fall back to the same live local fixture - never a video.">
+  <div class="kicker">Live demo · six beats</div>
   <ul class="beats">
     <li><span class="n">01</span><span>Borderline call → <strong>frozen</strong> for a human</span></li>
     <li><span class="n">02</span><span>Paraphrased attack, no keyword match → caught by <strong>embeddings</strong></span></li>
     <li><span class="n">03</span><span>Destructive call → <strong>auto-blocked</strong>, never executes</span></li>
     <li><span class="n">04</span><span>No one answers → <strong>fail-closed</strong> auto-deny</span></li>
     <li><span class="n">05</span><span>Encoded exfil → scorer allows, <strong>allowlist blocks</strong></span></li>
+    <li><span class="n">06</span><span>Fetched page plants a canary → harmless <code>echo</code> <strong>taint-blocked</strong></span></li>
   </ul>
   <p class="muted mono">every outcome labelled: executed · blocked_by_policy · blocked_by_allowlist · denied_by_human · failed_closed · failed</p>
 </section>

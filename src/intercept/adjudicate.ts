@@ -4,7 +4,8 @@ import type {
   PendingToolCall,
   ReviewResolution,
 } from './types'
-import type { ToolCall, Verdict } from '../lib/inspect'
+import { finalizeVerdict, type ToolCall, type Verdict } from '../lib/inspect'
+import { sentinel } from './sentinel'
 
 /**
  * Single-call gate. Both the Anthropic agent loop and the MCP gateway route
@@ -38,16 +39,28 @@ export async function adjudicate(
   pending: PendingToolCall,
   deps: AdjudicateDeps,
 ): Promise<Adjudication> {
-  const { toolCall, verdict } = await deps.inspect(pending)
+  const inspected = await deps.inspect(pending)
+  const toolCall = inspected.toolCall
+
+  // Layer 4: provenance. If this call is a high-risk sink and its arguments
+  // carry content previously fetched from an untrusted source, merge a
+  // data-flow finding before policy is applied. This is what catches indirect
+  // injection whose final tool call looks harmless in isolation.
+  let verdict = inspected.verdict
+  const taint = sentinel.findings(pending.toolName, pending.input)
+  if (taint.length > 0) {
+    verdict = finalizeVerdict([...verdict.findings, ...taint])
+  }
 
   if (verdict.recommendation === 'deny') {
+    const taintFinding = verdict.findings.find((f) => f.id === 'taint-flow')
     return {
       toolCall,
       verdict,
       decision: 'deny',
       decidedBy: 'auto',
       outcome: 'blocked_by_policy',
-      reason: verdict.headline,
+      reason: taintFinding ? `${taintFinding.title}: ${taintFinding.detail}` : verdict.headline,
       blocked: true,
     }
   }
@@ -96,6 +109,9 @@ export async function adjudicate(
         blocked: false,
       }
     }
+    // Learn provenance from untrusted tool output (HTTP, file reads, …) so the
+    // next call can be judged on where its data came from.
+    sentinel.observe(pending.toolName, pending.input, result)
     return { toolCall, verdict, decision: 'allow', decidedBy, outcome: 'executed', result, blocked: false }
   } catch (err) {
     return {

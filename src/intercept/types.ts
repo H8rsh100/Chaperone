@@ -83,5 +83,6 @@ export interface RunWithChaperoneOptions {
     | 'borderline'
     | 'adversarial'
     | 'encoded'
+    | 'indirect-injection'
     | 'all'
 }
