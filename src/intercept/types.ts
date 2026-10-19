@@ -1,5 +1,18 @@
 export type InterceptDecision = 'allow' | 'deny'
 
+/**
+ * The single source of truth for what actually happened to a tool call. Written
+ * AFTER execution so a call that the scorer approved but the hard allowlist
+ * refused is recorded as `blocked_by_allowlist`, never as an executed `allow`.
+ */
+export type Outcome =
+  | 'executed'
+  | 'blocked_by_policy'
+  | 'blocked_by_allowlist'
+  | 'denied_by_human'
+  | 'failed_closed'
+  | 'failed'
+
 export interface PendingToolCall {
   id: string
   toolName: string
@@ -31,6 +44,8 @@ export interface AuditRecord {
   decision: InterceptDecision | 'review'
   decidedBy: 'auto' | 'human'
   finalDecision?: InterceptDecision
+  /** Authoritative result of the call, written after execution. */
+  outcome: Outcome
   reason?: string
 }
 

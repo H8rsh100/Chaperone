@@ -1,14 +1,17 @@
-# Handoff — Teammate B: Demo hardening, preflight & deployment story
+# Handoff — Teammate B: Demo hardening & deployment (20%)
 
 > **If you are an AI coding agent:** this file is your complete task brief. Read
 > `README.md` first, then work through the deliverables in order. Stop and ask
 > your human owner before doing anything under **Do NOT**.
 
 ## Who you are working for
-Teammate B owns the **~15% "it must run on stage + where does it deploy"
-workstream**: a one-command self-check that proves the whole system works, a
-bulletproof offline demo path, and the deployment story. You are not modifying
-the engine — you are making the demo and the pitch unbreakable.
+Teammate B owns the **20% "it must run on stage + where does it deploy"
+workstream**: a one-command preflight, a bulletproof offline demo path, the
+tamper-demo script, container packaging, and the run-of-show. You do not modify
+the engine — you make the demo unbreakable.
+
+Team split: **Lead 60%** (engine, ledger, approvals, MCP, integration) ·
+**A 20%** (evaluation + model probe) · **B 20%** (this file).
 
 ## Project context
 Chaperone intercepts an AI agent's tool calls and risk-scores them
@@ -17,31 +20,29 @@ Chaperone intercepts an AI agent's tool calls and risk-scores them
 Key existing files:
 - `scripts/acceptance.mjs` — drives all five scenarios over the HTTP API.
 - `server/chaperoneApiPlugin.ts` — the API (`/run`, `/pending`, `/decide`, `/reset`, `/inspect`).
-- `src/components/Checkpoint.tsx` — the operator UI (scenario buttons + the
-  fail-closed countdown). **Do not restyle it** — the lead owns theming.
+- `src/components/Checkpoint.tsx` — the operator UI. **Do not restyle it** — the lead owns theming.
 - `package.json` — npm scripts (`dev`, `build`, `test`, `demo:acceptance`, `eval`).
 
 ### Demo scenarios and their expected outcomes
 | Scenario | Expected |
 |---|---|
-| `destructive` | auto **deny** (score 60) |
-| `benign-http` | auto **allow** (score 0) — *needs internet (httpbin.org)* |
-| `borderline` | **review** (score 28) → human decides |
-| `adversarial` | **review** (score 32) — caught by the semantic layer |
-| `encoded` | scorer **allow** (0) but the **hard allowlist blocks** the pipe (defense in depth) |
+| `destructive` | auto **deny** — never executes |
+| `benign-http` | auto **allow** — *needs internet (httpbin.org) → replace with your local fixture* |
+| `borderline` | **review** → human decides |
+| `adversarial` | **review** — caught by the semantic layer |
+| `encoded` | scorer allow, then **blocked by the hard allowlist** (defense in depth) |
 
 ### API contract
-- `POST /api/chaperone/run` body `{ "scenario": "destructive|benign-http|borderline|adversarial|encoded|all", "useLiveModel": false }` → `202`
+- `POST /api/chaperone/run` body `{ "scenario": "...", "useLiveModel": false }` → `202`
 - `GET  /api/chaperone/pending` → `{ pending: [...], audit: [...] }`
 - `POST /api/chaperone/decide` body `{ "id", "decision": "allow|deny" }`
 - `POST /api/chaperone/reset`
-- Audit record: `{ toolName, inputSummary, riskScore, riskLevel, decision, decidedBy: "auto"|"human", finalDecision, reason? }`
+- Audit record now includes an authoritative **`outcome`**:
+  `executed | blocked_by_policy | blocked_by_allowlist | denied_by_human | failed_closed | failed`.
 
 ## Environment (Windows / PowerShell, Node 24)
-- **Bind Vite to IPv4** or 127.0.0.1 calls fail:
-  `npm run dev -- --host 127.0.0.1 --port 5199 --strictPort`
-- Set your own git identity so commits attribute to you:
-  `git config user.name "<your name>"; git config user.email "<your email>"`
+- **Bind Vite to IPv4**: `npm run dev -- --host 127.0.0.1 --port 5199 --strictPort`
+- Set your own git identity: `git config user.name "<name>"; git config user.email "<email>"`
 - Always stop the child server you start (use a `finally` block + `taskkill /T`).
 
 ## Branch
@@ -53,65 +54,68 @@ git checkout -b feat/demo-hardening
 
 ## Deliverables
 
-### D1 — `scripts/preflight.mjs` + `npm run preflight`  (the headline item)
-A single, dependency-free command that proves the system is stage-ready. It must:
-1. Spawn the dev server on a **fixed** host/port (`127.0.0.1:5199`,
-   `--strictPort`), then poll `GET /api/chaperone/pending` until it responds
-   (timeout ~20s, fail loudly if it never boots).
-2. For each scenario, run it via `/run`, drive `/pending`, auto-resolve any
-   review, and **assert the expected outcome** from the table above. Print a
-   `PASS/FAIL` line per check.
-3. **Assert the fail-closed timeout**: set `CHAPERONE_REVIEW_TIMEOUT_MS` low
-   (e.g. `1500`), start `borderline`, do **not** call `/decide`, and assert the
-   audit eventually shows `decidedBy: "auto"` with a fail-closed reason.
-4. Print a final checklist and **exit nonzero on any failure**.
-5. Always kill the child server (including on error) so re-runs work.
+### D1 — `scripts/preflight.mjs` + `npm run preflight` (headline item)
+One dependency-free command that proves the system is stage-ready:
+1. Spawn the dev server on a **fixed** `127.0.0.1:5199` (`--strictPort`), poll
+   `GET /api/chaperone/pending` until it responds (timeout ~20s).
+2. For each scenario, run it, drive `/pending`, auto-resolve reviews, and
+   **assert the expected outcome** (table above). Print `PASS/FAIL` per check.
+   Assert against the audit `outcome` field, not the legacy `decision`.
+3. **Assert the fail-closed timeout**: low `CHAPERONE_REVIEW_TIMEOUT_MS` (e.g.
+   `1500`), start `borderline`, do **not** decide, assert the audit shows
+   `outcome: "failed_closed"`.
+4. Print a final checklist, **exit nonzero on any failure**, and always kill the
+   child server (including on error).
 
 ### D2 — Bulletproof offline demo path
-1. Add `npm run demo:start` → `vite --host 127.0.0.1 --port 5173 --strictPort --open`.
-2. Document clearly that `benign-http` requires internet while the other four
-   scenarios do not. Add a short "no WiFi" fallback to the runbook (below).
-3. *(Optional, coordinate with the lead first — touches core)* an offline-safe
-   benign scenario hitting a local endpoint, so every scenario works with no
-   network at all.
+1. `server/fixtures/http.ts` — a deterministic local JSON endpoint so
+   `benign-http` works with **no network**. Point the benign scenario at it.
+2. `npm run demo:start` → `vite --host 127.0.0.1 --port 5174 --strictPort --open`.
+3. Document the "no WiFi" path in the runbook.
 
-### D3 — `docs/deployment.md`
-Three concrete deployment stories, each with a one-paragraph description, a
-small architecture sketch, and the business value:
-1. **MCP gateway** — Chaperone as a proxy in front of MCP tool servers.
-2. **CI/CD guardrail** — deny destructive agent actions in pipelines.
-3. **Enterprise agent fleet** — central policy + tamper-evident audit for
-   compliance.
-End with a short roadmap (what v2 adds).
+### D3 — Tamper-evident ledger demo (`scripts/verify-ledger.mjs`)
+Depends on the lead's `server/audit/ledger.ts`. The script must:
+1. Print `verifyChain()` → green.
+2. Copy the ledger, corrupt one byte, re-verify → print `BROKEN AT ENTRY <n>`.
+This is a 30-second live beat — make the output legible at a distance.
 
-### D4 — `docs/demo-runbook.md`
-- The exact **15-minute stage script** with per-segment timing
-  (~6 min pitch / ~6 min live demo / ~3 min Q&A).
-- A **fallback ladder**: live → offline "Offline" UI mode → recorded video
-  (note: recorded demos score lower, so it's the last resort).
-- A **pre-stage checklist**: two laptops, hotspot, charger + power strip, repo
-  on USB **and** cloud, backup recording, `npm run preflight` green 10 minutes
-  before presenting.
+### D4 — Deployment
+- `Dockerfile` (models baked in, `HEALTHCHECK` → `/healthz`), `.dockerignore`,
+  `docker-compose.yml`. Container healthy in <30s with no network.
+- `docs/deployment.md` — three stories: MCP gateway, CI/CD guardrail,
+  enterprise agent fleet (central policy + tamper-evident audit). Short roadmap.
 
-## Definition of done (acceptance criteria)
-- [ ] `npm run preflight` passes end-to-end and exits `0`; exits `1` when a
-      check genuinely fails.
-- [ ] `npm run demo:start` opens the app.
-- [ ] `docs/deployment.md` and `docs/demo-runbook.md` exist and are complete.
-- [ ] `npm test` and `npm run build` are still green.
-- [ ] PR opened to `main` titled `feat: demo hardening + deployment story (Teammate B)`.
+### D5 — UI accent + run-of-show
+- `src/components/DemoBadge.tsx` — a small chip rendering `LIVE` / `SCRIPTED` /
+  `FALLBACK`. The lead mounts it in `Checkpoint.tsx`; **you only create it.**
+- `docs/demo-runbook.md` — the exact 15-minute script (4 min pitch / 6 min live
+  demo / 5 min Q&A), a fallback ladder (live → local fixture → **live scripted
+  path, never a recording**), and a pre-stage checklist (two laptops, hotspot,
+  charger, repo on USB + cloud, `npm run preflight` green 10 min before).
+
+## Definition of done
+- [ ] `npm run preflight` passes end-to-end (exits `0`; exits `1` on a real failure).
+- [ ] `npm run demo:start` opens the app; benign scenario works offline.
+- [ ] `scripts/verify-ledger.mjs` flips green → red on demand.
+- [ ] `docker compose up` reaches healthy in <30s.
+- [ ] `DemoBadge.tsx` exists; docs complete; PR opened:
+      `feat: demo hardening + deployment (Teammate B)`.
 
 ## Do NOT
-- Modify scoring/intercept/gate logic (`src/lib`, `src/intercept`, `server/gateStore.ts`).
-- Restyle the UI (the lead owns the theme).
-- Commit directly to `main` or force-push.
-- Add secrets/keys to the repo.
+- Modify `src/lib`, `src/intercept`, or `server` gate logic (owned by the lead).
+- Restyle the UI (the lead owns the theme). Creating `DemoBadge.tsx` is the exception.
+- Commit a recorded demo as the plan — recorded demos score lower at this event.
+- Commit directly to `main`, force-push, or add secrets.
+
+## Blocked on
+- Lead's P0-3 (hash-chained `ledger.ts` with `verifyChain`) for D3.
+- Lead's `/healthz` route for D4's `HEALTHCHECK`.
 
 ## Runbook
 ```powershell
 npm install
 npm run build
-npm run preflight        # this is the one that matters on stage day
+npm run preflight        # the one that matters on stage day
 npm run demo:start       # interactive UI check, then Ctrl+C
 npm test
 ```

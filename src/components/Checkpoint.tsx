@@ -5,6 +5,8 @@ import {
   type ToolCall,
   type Verdict,
 } from '../lib/inspect'
+import { statusOf, stampOf, type GateStatus } from '../intercept/status'
+import type { Outcome } from '../intercept/types'
 import { setFluid, triggerCollapse } from '../visual/state'
 import './Checkpoint.css'
 
@@ -13,7 +15,7 @@ type Props = {
 }
 
 type Decision = 'approved' | 'denied'
-type Status = 'pending' | 'approved' | 'denied' | 'blocked' | 'expired'
+type Status = GateStatus
 type Scenario =
   | 'destructive'
   | 'benign-http'
@@ -31,6 +33,7 @@ type AuditEntry = {
   decidedBy?: 'auto' | 'human'
   level?: string
   reason?: string
+  outcome?: Outcome
 }
 
 type LivePending = {
@@ -108,26 +111,13 @@ const SCENARIO_META: Array<{
   },
 ]
 
-function statusOf(e: AuditEntry): Status {
-  if (e.decision !== 'denied') return 'approved'
-  if (e.decidedBy === 'human') return 'denied'
-  if (e.reason?.includes('fail-closed')) return 'expired'
-  return 'blocked'
-}
-
-function stampOf(status: Status): { label: string; tone: 'allow' | 'deny' | 'review' } {
-  if (status === 'approved') return { label: 'APPROVED', tone: 'allow' }
-  if (status === 'denied') return { label: 'DENIED', tone: 'deny' }
-  if (status === 'expired') return { label: 'AUTO-DENIED', tone: 'review' }
-  return { label: 'BLOCKED', tone: 'deny' }
-}
-
 const STATUS_LABEL: Record<Status, string> = {
   pending: 'HELD',
   approved: 'ALLO',
   denied: 'DENY',
   blocked: 'BLOC',
   expired: 'AUTO',
+  failed: 'FAIL',
 }
 
 export function Checkpoint({ onBack }: Props) {
@@ -220,6 +210,7 @@ export function Checkpoint({ onBack }: Props) {
             decidedBy: (a.decidedBy as 'auto' | 'human') ?? 'auto',
             level: String(a.riskLevel ?? ''),
             reason: a.reason ? String(a.reason) : undefined,
+            outcome: a.outcome ? (String(a.outcome) as Outcome) : undefined,
           })),
       )
     }
@@ -556,8 +547,12 @@ export function Checkpoint({ onBack }: Props) {
                   'No human answered in time, so Chaperone failed closed and denied the call.'}
                 {latestStatus === 'denied' &&
                   'You denied this call at the checkpoint. It was never executed.'}
+                {latestStatus === 'failed' &&
+                  'Chaperone allowed this call, but the tool failed during execution.'}
                 {latestStatus === 'approved' &&
-                  'You approved this call at the checkpoint; it executed normally.'}
+                  (latest.decidedBy === 'human'
+                    ? 'You approved this call at the checkpoint; it executed normally.'
+                    : 'Chaperone scored this call safe and let it run.')}
               </p>
 
               <div className="gate__payload">
