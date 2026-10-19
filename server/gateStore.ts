@@ -5,6 +5,7 @@ import type {
 } from '../src/intercept/types'
 import type { ToolCall, Verdict } from '../src/lib/inspect'
 import { inspectPending } from '../src/intercept/mapCall'
+import { appendAudit } from './audit/ledger'
 
 export type GatePendingItem = {
   call: PendingToolCall
@@ -44,6 +45,13 @@ export function getAuditLog() {
 }
 
 export function pushAudit(record: Record<string, unknown>) {
+  // Durable, tamper-evident trail first — the in-memory window is just a cache
+  // for the UI. If the ledger write throws we still surface the record.
+  try {
+    appendAudit({ kind: 'decision', payload: record })
+  } catch {
+    // Never let an audit-write failure take down the gate.
+  }
   auditLog.unshift(record)
   if (auditLog.length > 200) auditLog.pop()
 }

@@ -10,6 +10,7 @@ import {
   requestHumanDecision,
   resolveDecision,
 } from './gateStore'
+import { ledgerPath, resetLedger, verifyChain } from './audit/ledger'
 
 function readJson(req: import('http').IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
@@ -64,6 +65,17 @@ export function chaperoneApiPlugin(): Plugin {
 
           if (req.method === 'POST' && url.startsWith('/api/chaperone/reset')) {
             clearGate()
+            return send(res, 200, { ok: true })
+          }
+
+          // Re-walk the tamper-evident audit chain.
+          if (req.method === 'GET' && url.startsWith('/api/chaperone/ledger/verify')) {
+            return send(res, 200, { ...verifyChain(), path: ledgerPath() })
+          }
+
+          if (req.method === 'POST' && url.startsWith('/api/chaperone/ledger/reset')) {
+            clearGate()
+            resetLedger()
             return send(res, 200, { ok: true })
           }
 
