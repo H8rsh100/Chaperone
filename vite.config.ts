@@ -5,6 +5,6 @@ import { chaperoneApiPlugin } from './server/chaperoneApiPlugin'
 export default defineConfig({
   plugins: [react(), chaperoneApiPlugin()],
   server: {
-    port: 5173,
+    port: 5174,
   },
 })

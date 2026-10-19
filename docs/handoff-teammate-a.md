@@ -38,7 +38,7 @@ never couple to internals:
 ## Environment (Windows / PowerShell, Node 24)
 - **Bind Vite to IPv4** or `127.0.0.1` calls fail:
   `npm run dev -- --host 127.0.0.1 --port 5199 --strictPort`
-- Scripts read `CHAPERONE_URL` (default `http://127.0.0.1:5173`).
+- Scripts read `CHAPERONE_URL` (default `http://127.0.0.1:5174`).
 - Set your own git identity: `git config user.name "<name>"; git config user.email "<email>"`
 - Keep green at all times: `npm test`, `npm run build`.
 

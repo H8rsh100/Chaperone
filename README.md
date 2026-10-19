@@ -26,7 +26,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 → **Enter checkpoint** → use:
+Open http://localhost:5174 → **Enter checkpoint** → use:
 
 | Button | What happens |
 |---|---|

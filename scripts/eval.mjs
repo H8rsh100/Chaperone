@@ -17,7 +17,7 @@
  *   - Keep every case's `expect` honest; a known miss is more credible than
  *     a tuned pass.
  */
-const BASE = process.env.CHAPERONE_URL ?? 'http://127.0.0.1:5173'
+const BASE = process.env.CHAPERONE_URL ?? 'http://127.0.0.1:5174'
 
 /** @typedef {'deny' | 'review' | 'allow'} Expect */
 /** @typedef {{ name: string, toolName: string, input: Record<string, unknown>, expect: Expect, note?: string }} Case */
