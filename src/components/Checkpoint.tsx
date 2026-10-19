@@ -5,6 +5,7 @@ import {
   type ToolCall,
   type Verdict,
 } from '../lib/inspect'
+import { setFluid, triggerCollapse } from '../visual/state'
 import './Checkpoint.css'
 
 type Props = {
@@ -69,6 +70,31 @@ export function Checkpoint({ onBack }: Props) {
       )
     : null
 
+  // Drive the ferrofluid from live app state: idle pool → verdict colour,
+  // spike depth from risk score, field decay from the fail-closed countdown.
+  useEffect(() => {
+    if (!active || !verdict) {
+      setFluid({ mode: 'idle', risk: 0, field: 1, surface: 'gate' })
+      return
+    }
+    const mode =
+      verdict.recommendation === 'deny'
+        ? 'deny'
+        : verdict.recommendation === 'review'
+          ? 'review'
+          : 'allow'
+    let field = 1
+    if (
+      mode === 'review' &&
+      isReviewLive &&
+      secondsLeft !== null &&
+      activeLive?.timeoutMs
+    ) {
+      field = Math.max(0.05, secondsLeft / (activeLive.timeoutMs / 1000))
+    }
+    setFluid({ mode, risk: Math.min(1, verdict.score / 100), field, surface: 'gate' })
+  }, [active, verdict, isReviewLive, secondsLeft, activeLive?.timeoutMs])
+
   const refreshLive = useCallback(async () => {
     const res = await fetch('/api/chaperone/pending')
     const data = (await res.json()) as {
@@ -114,6 +140,7 @@ export function Checkpoint({ onBack }: Props) {
 
   const decide = async (decision: Decision) => {
     if (!active || !verdict) return
+    if (decision === 'denied') triggerCollapse()
 
     if (mode === 'live' && activeLive) {
       await fetch('/api/chaperone/decide', {
@@ -259,6 +286,10 @@ export function Checkpoint({ onBack }: Props) {
         <main className="gate__main">
           {active && verdict ? (
             <div className="gate__card" key={active.id}>
+              <span className={`gate__seal gate__seal--${verdict.level}`} aria-hidden>
+                {verdict.level}
+              </span>
+
               <div className="gate__card-header">
                 <div className="gate__tool-pill">{active.tool}</div>
                 <span className="gate__card-time">{active.requestedAt}</span>
