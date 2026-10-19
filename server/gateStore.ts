@@ -6,6 +6,13 @@ import type {
 import type { ToolCall, Verdict } from '../src/lib/inspect'
 import { inspectPending } from '../src/intercept/mapCall'
 import { appendAudit } from './audit/ledger'
+import {
+  callHashOf,
+  consumeToken,
+  mintDecisionToken,
+  operator,
+  verifyDecisionToken,
+} from './approval/token'
 
 export type GatePendingItem = {
   call: PendingToolCall
@@ -14,6 +21,10 @@ export type GatePendingItem = {
   createdAt: string
   expiresAt: string
   timeoutMs: number
+  /** Content hash the decision token is bound to. */
+  callHash: string
+  /** Signed, single-use, call-bound token the operator must present to decide. */
+  decisionToken: string
 }
 
 type Waiter = {
@@ -56,12 +67,19 @@ export function pushAudit(record: Record<string, unknown>) {
   if (auditLog.length > 200) auditLog.pop()
 }
 
+/** Approval tokens are required by default; set to "false" to disable (never in prod). */
+function approvalTokenRequired(): boolean {
+  return process.env.CHAPERONE_REQUIRE_APPROVAL_TOKEN !== 'false'
+}
+
 export function requestHumanDecision(
   call: PendingToolCall,
 ): Promise<ReviewResolution> {
   const { toolCall, verdict } = inspectPending(call)
   const timeoutMs = reviewTimeoutMs()
   const now = Date.now()
+  const callHash = callHashOf(call)
+  const { token } = mintDecisionToken({ callId: call.id, callHash, sub: operator() }, timeoutMs)
   const item: GatePendingItem = {
     call,
     toolCall,
@@ -69,6 +87,8 @@ export function requestHumanDecision(
     createdAt: new Date(now).toISOString(),
     expiresAt: new Date(now + timeoutMs).toISOString(),
     timeoutMs,
+    callHash,
+    decisionToken: token,
   }
 
   return new Promise((resolve) => {
@@ -86,16 +106,38 @@ export function requestHumanDecision(
   })
 }
 
+export type ResolveResult =
+  | { ok: true }
+  | { ok: false; status: number; reason: string }
+
+/**
+ * Resolve a held call. The caller must present the signed, call-bound, single-use
+ * token minted for this exact pending item, or the approval is rejected.
+ */
 export function resolveDecision(
   id: string,
   decision: InterceptDecision,
-): boolean {
+  token?: string,
+): ResolveResult {
   const waiter = waiters.get(id)
-  if (!waiter) return false
+  if (!waiter) return { ok: false, status: 404, reason: 'no pending call with that id' }
+
+  if (approvalTokenRequired()) {
+    if (!token) return { ok: false, status: 401, reason: 'missing approval token' }
+    const verified = verifyDecisionToken(token, {
+      callHash: waiter.item.callHash,
+      sub: operator(),
+    })
+    if (!verified.ok) return { ok: false, status: 403, reason: verified.reason }
+    if (!consumeToken(verified.body.jti, verified.body.exp)) {
+      return { ok: false, status: 409, reason: 'approval token already used' }
+    }
+  }
+
   clearTimeout(waiter.timer)
   waiters.delete(id)
   waiter.resolve({ decision, decidedBy: 'human' })
-  return true
+  return { ok: true }
 }
 
 export function clearGate() {

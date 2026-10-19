@@ -35,8 +35,11 @@ Key existing files:
 ### API contract
 - `POST /api/chaperone/run` body `{ "scenario": "...", "useLiveModel": false }` → `202`
 - `GET  /api/chaperone/pending` → `{ pending: [...], audit: [...] }`
-- `POST /api/chaperone/decide` body `{ "id", "decision": "allow|deny" }`
-- `POST /api/chaperone/reset`
+- `POST /api/chaperone/decide` body `{ "id", "decision": "allow|deny", "token" }` —
+  the `token` is the single-use, call-bound `decisionToken` returned on each item
+  in `GET /pending`; a decision without a valid token is rejected (`401/403/409`).
+- `POST /api/chaperone/reset` · `GET /api/chaperone/ledger/verify` ·
+  `POST /api/chaperone/ledger/reset`
 - Audit record now includes an authoritative **`outcome`**:
   `executed | blocked_by_policy | blocked_by_allowlist | denied_by_human | failed_closed | failed`.
 

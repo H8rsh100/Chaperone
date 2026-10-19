@@ -39,7 +39,11 @@ async function runScenario(name) {
     if (pending.length) {
       const id = pending[0].call.id
       console.log('resolving review as deny for', id)
-      await post('/api/chaperone/decide', { id, decision: 'deny' })
+      await post('/api/chaperone/decide', {
+        id,
+        decision: 'deny',
+        token: pending[0].decisionToken,
+      })
     }
     const latest = audit[0]
     if (latest && String(latest.inputSummary ?? '').includes(`scenario=${name}`)) {

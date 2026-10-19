@@ -47,6 +47,7 @@ type LivePending = {
   createdAt: string
   expiresAt?: string
   timeoutMs?: number
+  decisionToken?: string
 }
 
 type ActivityItem = {
@@ -234,6 +235,7 @@ export function Checkpoint({ onBack }: Props) {
         body: JSON.stringify({
           id: activeLive.call.id,
           decision: decision === 'approved' ? 'allow' : 'deny',
+          token: activeLive.decisionToken,
         }),
       })
       await refreshLive()

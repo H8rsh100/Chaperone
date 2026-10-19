@@ -55,12 +55,14 @@ export function chaperoneApiPlugin(): Plugin {
             const body = (await readJson(req)) as {
               id?: string
               decision?: 'allow' | 'deny'
+              token?: string
             }
             if (!body.id || (body.decision !== 'allow' && body.decision !== 'deny')) {
               return send(res, 400, { error: 'id and decision required' })
             }
-            const ok = resolveDecision(body.id, body.decision)
-            return send(res, ok ? 200 : 404, { ok })
+            const result = resolveDecision(body.id, body.decision, body.token)
+            if (result.ok) return send(res, 200, { ok: true })
+            return send(res, result.status, { ok: false, error: result.reason })
           }
 
           if (req.method === 'POST' && url.startsWith('/api/chaperone/reset')) {
