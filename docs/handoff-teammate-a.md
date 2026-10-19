@@ -22,7 +22,11 @@ Key existing files:
 - `src/lib/inspect.ts` — the scoring engine (weights + thresholds).
 - `src/lib/semantic.ts` — offline hashing embedder (to be replaced by the lead's ONNX backend).
 - `server/chaperoneApiPlugin.ts` — the HTTP API (`/inspect` scores without executing).
-- `scripts/eval.mjs` — today's toy harness (14 cases, 100% — **this is the credibility bug you will fix**).
+- `scripts/eval.mjs` — the old toy harness (14 cases, 100%) — being superseded.
+- `scripts/metrics.mjs` — pure metrics math (confusion, recall@FPR, ROC-AUC, Wilson CI, percentiles, Brier) + `scripts/metrics.test.mjs`.
+- `scripts/corpus.mjs` — 35-case labeled baseline corpus you will extend.
+- `scripts/bench.mjs` (`npm run bench`) — reports recall/precision/FPR, AUC, recall@FPR, latency, per-category, and known misses; writes `docs/bench-output.json`.
+- `docs/benchmarks.md` — baseline results + the three documented hard misses.
 - `scripts/acceptance.mjs` — end-to-end scenario proof.
 
 ### Frozen interface you build against
@@ -60,13 +64,13 @@ Normalize three public sources to one JSONL shape
 **Hygiene (scored):** dedup on normalized text, **group-aware splits** (no
 source/duplicate leakage across train/test). Document the split sizes.
 
-### D2 — Benchmark harness (`scripts/bench.mjs`, `npm run bench`)
-- Threshold sweep → **recall @ FPR ≤ 1%** and **≤ 5%**, plus AUC and PR-AUC.
-- **Wilson 95% confidence intervals** for every rate (N and CI on the slide).
-- Calibration: Brier score and ECE for the probe probabilities.
-- Latency: warm up, then 1,000 calls → p50/p95/p99; subtract a no-op baseline;
-  report peak RSS.
-- Emit both a JSON file and a markdown table (this *is* the slide's data source).
+### D2 — Extend the benchmark harness (`scripts/bench.mjs`)
+The metrics math and harness already exist — **extend, don't rebuild**:
+- Add **PR-AUC** and **ECE** to `scripts/metrics.mjs` (with tests).
+- Add a warmup pass and 1,000-call latency run → p50/p95/p99; report peak RSS.
+- Keep the JSON + markdown output as the slide's single data source.
+- Do **not** delete the `hard` category or hide mismatches — the honest gaps are
+  the point; the deck references them.
 
 ### D3 — Trained probe (`scripts/train_probe.py` → `models/probe.json`)
 - Offline (Python is fine — it never runs on stage): logistic regression on
