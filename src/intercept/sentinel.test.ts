@@ -31,6 +31,12 @@ describe('TaintSentinel', () => {
     expect(finding.id).toBe('taint-flow')
     expect(finding.weight).toBeGreaterThanOrEqual(50)
     expect(finding.detail).toContain('Blocked on provenance')
+    expect(finding.evidence?.kind).toBe('taint')
+    expect(finding.evidence?.canary).toBe('ZQ7XK2M9')
+    expect(finding.evidence?.sourceTool).toBe('http_fetch')
+    expect(finding.evidence?.sourceOrigin).toBe(fetchCall.url)
+    expect(finding.evidence?.sinkTool).toBe('shell_command')
+    expect(finding.evidence?.sourceSample).toContain('execute')
   })
 
   it('catches a paraphrased phrase through shingle overlap, not keywords', () => {

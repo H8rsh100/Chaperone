@@ -102,6 +102,8 @@ tracker:
   longest contiguous token run; a canary hit escalates immediately.
 - Findings (`id: 'taint-flow'`) are merged through `finalizeVerdict`, so taint
   uses the **same thresholds** as every other layer and appears in the audit.
+- The findings carry structured `evidence`, and the Checkpoint draws the path:
+  untrusted source → matched canary/overlap → the sink that was stopped.
 
 It is wired into `adjudicate.ts`, the single gate shared by the Anthropic loop
 and the MCP gateway, so every integration gets provenance checking for free.

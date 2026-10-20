@@ -675,6 +675,172 @@
   color: var(--amber);
 }
 
+/* ========================= PROVENANCE TRACE ========================= */
+
+.gate__trace {
+  margin-top: 1.1rem;
+  padding: 0.95rem 1rem 1rem;
+  border: 1px solid rgba(245, 165, 36, 0.28);
+  border-radius: 4px;
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(245, 165, 36, 0.07), transparent 60%),
+    rgba(5, 4, 7, 0.45);
+}
+
+.gate__trace-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.9rem;
+  margin-bottom: 0.8rem;
+}
+
+.gate__trace-title {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+.gate__trace-sub {
+  font-size: 0.66rem;
+  color: var(--mute);
+}
+
+.gate__trace-node {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 2px solid var(--border);
+  border-radius: 3px;
+  background: rgba(5, 4, 7, 0.55);
+}
+
+.gate__trace-node--source {
+  border-left-color: var(--amber);
+}
+
+.gate__trace-node--sink {
+  border-left-color: var(--deny);
+}
+
+.gate__trace-node--executed {
+  border-left-color: var(--allow);
+}
+
+.gate__trace-role {
+  font-family: var(--font-mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.gate__trace-tool {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.gate__trace-origin {
+  font-size: 0.68rem;
+  color: var(--violet-soft);
+  word-break: break-all;
+}
+
+.gate__trace-sample,
+.gate__trace-payload {
+  margin: 0.12rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.gate__trace-sample {
+  color: var(--mute);
+  font-style: italic;
+}
+
+.gate__trace-payload {
+  color: var(--ink);
+}
+
+.gate__trace-edge {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0 0.4rem 0.9rem;
+}
+
+.gate__trace-arrow {
+  color: var(--amber);
+  font-size: 0.95rem;
+  line-height: 1;
+  animation: tracePulse 1.8s ease-in-out infinite;
+}
+
+.gate__trace-signal {
+  font-size: 0.6rem;
+  letter-spacing: 0.03em;
+  color: var(--mute);
+}
+
+.gate__trace-hit {
+  padding: 0 0.14rem;
+  background: rgba(245, 165, 36, 0.22);
+  border-radius: 2px;
+  color: var(--amber);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.gate__trace-state {
+  align-self: flex-start;
+  margin-top: 0.3rem;
+  padding: 0.08rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  font-size: 0.54rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.gate__trace-state--blocked {
+  border-color: rgba(255, 59, 82, 0.45);
+  color: var(--deny);
+}
+
+.gate__trace-state--held {
+  border-color: rgba(245, 165, 36, 0.45);
+  color: var(--amber);
+}
+
+.gate__trace-state--executed {
+  border-color: rgba(53, 224, 161, 0.45);
+  color: var(--allow);
+}
+
+@keyframes tracePulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gate__trace-arrow {
+    animation: none;
+  }
+}
+
 /* ============================ ACTIONS ============================ */
 
 .gate__actions {

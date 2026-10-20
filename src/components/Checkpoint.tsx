@@ -4,6 +4,7 @@ import {
   inspect,
   type Finding,
   type FindingId,
+  type TaintEvidence,
   type ToolCall,
   type Verdict,
 } from '../lib/inspect'
@@ -134,6 +135,92 @@ const FINDING_SOURCE: Record<FindingId, { label: string; tone: string }> = {
   'semantic-injection': { label: 'Semantic', tone: 'semantic' },
   'onnx-semantic': { label: 'ONNX Semantic', tone: 'semantic' },
   'taint-flow': { label: 'Taint Sentinel', tone: 'taint' },
+}
+
+type TaintState = 'held' | 'blocked' | 'executed'
+
+const TAINT_STATE_LABEL: Record<TaintState, string> = {
+  held: 'held for your decision',
+  blocked: 'blocked before execution',
+  executed: 'executed — recorded in the ledger',
+}
+
+/**
+ * The visible provenance argument: untrusted content entered here, its value
+ * reappeared in this high-risk call, therefore the call is judged on origin.
+ */
+function TaintPath({
+  evidence,
+  payload,
+  state,
+}: {
+  evidence: TaintEvidence
+  payload: string
+  state: TaintState
+}) {
+  const confidence = Math.round(evidence.confidence * 100)
+  const overlap = Math.round(evidence.containment * 100)
+  const signal =
+    evidence.signal === 'marker'
+      ? 'canary'
+      : evidence.signal === 'exact'
+        ? 'whole-source match'
+        : 'phrase overlap'
+
+  // Mark the exact canary in both nodes so the path is visually undeniable.
+  const markCanary = (text: string) => {
+    const canary = evidence.canary
+    if (!canary) return text
+    const at = text.toLowerCase().indexOf(canary.toLowerCase())
+    if (at < 0) return text
+    return (
+      <>
+        {text.slice(0, at)}
+        <mark className="gate__trace-hit">{text.slice(at, at + canary.length)}</mark>
+        {text.slice(at + canary.length)}
+      </>
+    )
+  }
+
+  return (
+    <div className="gate__trace" aria-label="Provenance path">
+      <div className="gate__trace-head">
+        <span className="gate__trace-title">Provenance path</span>
+        <span className="gate__trace-sub">judged on where the data came from</span>
+      </div>
+
+      <div className="gate__trace-node gate__trace-node--source">
+        <span className="gate__trace-role">Untrusted source</span>
+        <span className="gate__trace-tool mono">{evidence.sourceTool}</span>
+        <span className="gate__trace-origin mono">{evidence.sourceOrigin}</span>
+        <p className="gate__trace-sample">“{markCanary(evidence.sourceSample)}”</p>
+      </div>
+
+      <div className="gate__trace-edge">
+        <span className="gate__trace-arrow" aria-hidden>
+          ↓
+        </span>
+        <span className="gate__trace-signal mono">
+          {signal}
+          {evidence.canary ? ` · “${evidence.canary}”` : ''}
+          {evidence.signal === 'marker'
+            ? ' · exact token from untrusted source'
+            : ` · ${overlap}% overlap · ${evidence.run}-token run`}
+          {' · '}
+          {confidence}% confidence
+        </span>
+      </div>
+
+      <div className={`gate__trace-node gate__trace-node--sink gate__trace-node--${state}`}>
+        <span className="gate__trace-role">High-risk sink</span>
+        <span className="gate__trace-tool mono">{evidence.sinkTool}</span>
+        <pre className="gate__trace-payload mono">{markCanary(payload.trim().slice(0, 220))}</pre>
+        <span className={`gate__trace-state gate__trace-state--${state} mono`}>
+          {TAINT_STATE_LABEL[state]}
+        </span>
+      </div>
+    </div>
+  )
 }
 
 const STATUS_LABEL: Record<Status, string> = {
@@ -374,6 +461,11 @@ export function Checkpoint({ onBack }: Props) {
   const latestStatus = latest ? statusOf(latest) : null
   const latestStamp = latestStatus ? stampOf(latestStatus) : null
   const latestLevel = latest ? latest.level || inspect(latest.call).level : ''
+  const taintEvidence =
+    verdict?.findings.find((f) => f.evidence?.kind === 'taint')?.evidence ?? null
+  const latestTaint =
+    latest?.findings?.find((f) => f.evidence?.kind === 'taint')?.evidence ?? null
+  const latestTaintState: TaintState = latestStatus === 'approved' ? 'executed' : 'blocked'
 
   return (
     <section className="gate" aria-label="Agent checkpoint">
@@ -496,6 +588,10 @@ export function Checkpoint({ onBack }: Props) {
                 <pre className="gate__payload-code">{active.payload}</pre>
               </div>
 
+              {taintEvidence && (
+                <TaintPath evidence={taintEvidence} payload={active.payload} state="held" />
+              )}
+
               {verdict.findings.length > 0 && (
                 <div className="gate__findings">
                   <p className="gate__findings-title">
@@ -596,6 +692,14 @@ export function Checkpoint({ onBack }: Props) {
                 <p className="gate__payload-label">Tool call</p>
                 <pre className="gate__payload-code">{latest.call.payload}</pre>
               </div>
+
+              {latestTaint && (
+                <TaintPath
+                  evidence={latestTaint}
+                  payload={latest.call.payload}
+                  state={latestTaintState}
+                />
+              )}
 
               {latest.findings && latest.findings.length > 0 && (
                 <div className="gate__findings">

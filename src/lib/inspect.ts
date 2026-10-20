@@ -21,11 +21,31 @@ export type FindingId =
   | 'onnx-semantic'
   | 'taint-flow'
 
+/**
+ * Structured provenance for a taint finding, so the UI can draw the
+ * source → sink path instead of only a sentence. Untrusted content entered at
+ * `sourceTool`, and its value resurfaced in `sinkTool`.
+ */
+export interface TaintEvidence {
+  kind: 'taint'
+  sourceTool: string
+  sourceOrigin: string
+  sourceSample: string
+  sinkTool: string
+  canary?: string
+  signal: 'marker' | 'exact' | 'overlap'
+  confidence: number
+  run: number
+  containment: number
+}
+
 export interface Finding {
   id: FindingId
   title: string
   detail: string
   weight: number
+  /** Present on deterministic/taint findings that carry a machine-readable trace. */
+  evidence?: TaintEvidence
 }
 
 export interface ToolCall {

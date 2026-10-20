@@ -32,7 +32,7 @@ const MAX_SCAN_TOKENS = 600
 const MIN_CONFIDENCE = 0.34
 const MIN_RUN = 6
 /** High-entropy, letter+digit token (canary, build id, API-ish value). */
-const MARKER_RE = /^(?=.*[a-z])(?=.*\d)[a-z0-9]{8,}$/
+const MARKER_RE = /^(?=.*[a-z])(?=.*\d)[a-z0-9]{8,}$/i
 
 /** Tools whose output is attacker-controlled and must be tracked. */
 const UNTRUSTED_SOURCES = new Set([
@@ -77,6 +77,8 @@ export interface TaintRecord {
   shingles: Set<number>
   markers: Set<string>
   preview: string
+  /** Original-case excerpt, for showing the evidence in the UI. */
+  sample: string
 }
 
 export interface TaintMatch {
@@ -86,6 +88,8 @@ export interface TaintMatch {
   confidence: number
   containment: number
   run: number
+  /** The distinctive token that matched, in its original casing. */
+  marker?: string
 }
 
 // ── text primitives ─────────────────────────────────────────────────────────
@@ -120,6 +124,11 @@ function shingleSet(tokens: string[]): Set<number> {
     set.add(hash32(tokens.slice(i, i + SHINGLE_SIZE).join(' ')))
   }
   return set
+}
+
+/** Alphanumeric tokens with their original casing, for readable evidence. */
+function rawTokens(text: string): string[] {
+  return text.slice(0, MAX_CHARS).match(/[A-Za-z0-9]+/g) ?? []
 }
 
 function markersOf(tokens: string[]): Set<string> {
@@ -228,8 +237,9 @@ export class TaintSentinel {
       normalized,
       tokens,
       shingles: shingleSet(tokens),
-      markers: markersOf(tokens),
+      markers: markersOf(rawTokens(text)),
       preview: normalized.slice(0, 160),
+      sample: text.replace(/\s+/g, ' ').trim().slice(0, 220),
     }
 
     this.records.push(record)
@@ -258,13 +268,14 @@ export class TaintSentinel {
     const matches: TaintMatch[] = []
 
     for (const record of this.records) {
-      let markerHit = false
+      let matchedMarker: string | undefined
       for (const marker of record.markers) {
-        if (candidateSet.has(marker)) {
-          markerHit = true
+        if (candidateSet.has(marker.toLowerCase())) {
+          matchedMarker = marker
           break
         }
       }
+      const markerHit = matchedMarker !== undefined
 
       let overlap = 0
       for (const shingle of candidateShingles) {
@@ -290,6 +301,7 @@ export class TaintSentinel {
         confidence: Math.min(0.99, confidence),
         containment,
         run,
+        marker: matchedMarker,
       })
     }
 
@@ -314,6 +326,18 @@ export class TaintSentinel {
           match.containment * 100,
         )}% shingle overlap). Blocked on provenance, not keywords.`,
         weight: Math.min(60, 34 + Math.round(26 * match.confidence)),
+        evidence: {
+          kind: 'taint',
+          sourceTool: match.record.tool,
+          sourceOrigin: match.record.origin,
+          sourceSample: match.record.sample,
+          sinkTool: match.sink,
+          canary: match.marker,
+          signal: match.signal,
+          confidence: match.confidence,
+          run: match.run,
+          containment: match.containment,
+        },
       }
     })
   }
