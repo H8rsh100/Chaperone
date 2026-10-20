@@ -35,6 +35,15 @@ export function semanticStatus(): { state: string; backend: string } {
   return { state, backend }
 }
 
+/**
+ * Embed text for the Aegis-Swarm saliency analyzer. Returns null until the
+ * transformer is warm so callers can fall back to the deterministic vectorizer.
+ */
+export async function embedForAnalysis(text: string): Promise<Float32Array | null> {
+  if (state !== 'warm' || !embedder) return null
+  return embedder(text)
+}
+
 export async function warmup(): Promise<boolean> {
   if (state === 'warm') return true
   if (warmPromise) return warmPromise

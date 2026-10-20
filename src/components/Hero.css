@@ -60,9 +60,20 @@
   letter-spacing: 0.02em;
   color: rgba(236, 232, 246, 0.94);
   mix-blend-mode: screen;
-  text-shadow: 0 0 50px rgba(127, 90, 240, 0.4);
+  text-shadow: 0 0 50px rgba(255, 59, 82, 0.3), 0 0 90px rgba(127, 90, 240, 0.3);
   clip-path: inset(0 0 -10% 0);
   animation: mask-rise 0.9s var(--ease) both;
+}
+
+.hero__title-sub {
+  display: block;
+  margin-top: 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.55em;
+  color: var(--deny);
+  text-shadow: 0 0 18px rgba(255, 59, 82, 0.45);
 }
 
 .hero__tagline {
@@ -114,6 +125,26 @@
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
+.hero__card-dot--red {
+  background: var(--deny);
+  box-shadow: 0 0 8px var(--deny);
+  animation: pulse-glow 2.4s ease-in-out infinite;
+}
+
+.hero__card-dot--violet {
+  background: var(--violet-soft);
+  box-shadow: 0 0 8px var(--violet-soft);
+  animation: pulse-glow 2.1s ease-in-out infinite;
+}
+
+.hero__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 .hero__card-label {
   margin: 0;
   font-family: var(--font-mono);
@@ -148,6 +179,20 @@
 
 .hero__cta:hover {
   box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.6), 0 18px 50px rgba(127, 90, 240, 0.55);
+}
+
+.hero__cta--ghost {
+  background: transparent;
+  color: var(--mute);
+  border: 1px solid var(--border);
+  box-shadow: none;
+  padding: 0.95rem 1.7rem;
+}
+
+.hero__cta--ghost:hover {
+  color: var(--ink);
+  border-color: var(--violet);
+  box-shadow: 0 0 24px rgba(127, 90, 240, 0.2);
 }
 
 .hero__hint {

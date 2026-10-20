@@ -22,6 +22,12 @@ import {
 } from './audit/anchor'
 import { callMcpTool, mcpTools } from './mcp/server'
 import { sentinel } from '../src/intercept/sentinel'
+import {
+  resetSwarm,
+  startSwarm,
+  swarmSnapshot,
+  type SwarmRunMode,
+} from './swarm/runtime'
 
 function readJson(req: import('http').IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
@@ -114,6 +120,28 @@ export function chaperoneApiPlugin(): Plugin {
             ].join('\n'),
           )
           return
+        }
+
+        // ── Aegis-Swarm control plane ───────────────────────────────────────
+        if (req.method === 'POST' && url.startsWith('/api/swarm/run')) {
+          const body = (await readJson(req)) as { mode?: SwarmRunMode }
+          const mode: SwarmRunMode = body.mode === 'benign' ? 'benign' : 'poisoned'
+          const started = startSwarm(mode)
+          if (!started.started) return send(res, 409, { error: started.error })
+          return send(res, 202, {
+            started: true,
+            mode,
+            message: 'Swarm started. Poll /api/swarm/state and /api/chaperone/pending.',
+          })
+        }
+
+        if (req.method === 'GET' && url.startsWith('/api/swarm/state')) {
+          return send(res, 200, swarmSnapshot())
+        }
+
+        if (req.method === 'POST' && url.startsWith('/api/swarm/reset')) {
+          const ok = resetSwarm()
+          return send(res, ok ? 200 : 409, ok ? { ok: true } : { error: 'swarm run active' })
         }
 
         if (!url.startsWith('/api/chaperone')) return next()

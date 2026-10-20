@@ -11,6 +11,7 @@ export function Cursor() {
 
   useEffect(() => {
     if (window.matchMedia('(pointer: coarse)').matches) return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
     let x = window.innerWidth / 2
     let y = window.innerHeight / 2
@@ -26,6 +27,7 @@ export function Cursor() {
       const el = e.target as HTMLElement | null
       const interactive = !!el?.closest('button, a, input, [role="button"], .magnetic')
       target = interactive ? 1.9 : 1
+      if (reduce) tick()
     }
 
     const tick = () => {
@@ -38,11 +40,12 @@ export function Cursor() {
       if (ringRef.current) {
         ringRef.current.style.transform = `translate3d(${rx}px, ${ry}px, 0) translate(-50%, -50%) scale(${scale.toFixed(3)})`
       }
-      raf = requestAnimationFrame(tick)
+      if (!reduce) raf = requestAnimationFrame(tick)
     }
 
     window.addEventListener('pointermove', onMove, { passive: true })
-    raf = requestAnimationFrame(tick)
+    if (reduce) tick()
+    else raf = requestAnimationFrame(tick)
     return () => {
       window.removeEventListener('pointermove', onMove)
       cancelAnimationFrame(raf)

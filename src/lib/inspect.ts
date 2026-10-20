@@ -7,6 +7,7 @@ export type ToolKind =
   | 'fs.write'
   | 'db'
   | 'secrets'
+  | 'swarm'
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
 

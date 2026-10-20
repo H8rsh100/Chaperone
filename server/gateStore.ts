@@ -94,13 +94,15 @@ function approvalTokenRequired(): boolean {
 export function requestHumanDecision(
   call: PendingToolCall,
   verdictOverride?: Verdict,
+  timeoutOverrideMs?: number,
 ): Promise<ReviewResolution> {
   const inspected = inspectPending(call)
   const toolCall = inspected.toolCall
   // The caller already ran the full pipeline (rules + ONNX + taint). Use that
   // exact verdict for the review card; never re-score the human's evidence.
   const verdict = verdictOverride ?? inspected.verdict
-  const timeoutMs = reviewTimeoutMs()
+  const timeoutMs =
+    timeoutOverrideMs && timeoutOverrideMs > 0 ? timeoutOverrideMs : reviewTimeoutMs()
   const now = Date.now()
   const callHash = callHashOf(call)
   const { token } = mintDecisionToken({ callId: call.id, callHash, sub: operator() }, timeoutMs)

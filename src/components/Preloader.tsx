@@ -61,7 +61,7 @@ export function Preloader() {
       <div className="preloader__panel preloader__panel--bottom" />
       <div className="preloader__core">
         <span className="preloader__drop" />
-        <span className="preloader__word">CHAPERONE</span>
+        <span className="preloader__word">AEGIS</span>
         <span className="preloader__counter mono">{String(pct).padStart(3, '0')}</span>
       </div>
     </div>

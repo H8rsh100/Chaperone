@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Hero } from './components/Hero'
 import { Checkpoint } from './components/Checkpoint'
+import { Swarm } from './components/Swarm'
 import { FluidCanvas } from './components/FluidCanvas'
 import { Atmosphere } from './components/Atmosphere'
 import { Cursor } from './components/Cursor'
@@ -8,11 +9,16 @@ import { Preloader } from './components/Preloader'
 import { fluidState, setFluid } from './visual/state'
 import './App.css'
 
-type View = 'hero' | 'gate'
+type View = 'hero' | 'swarm' | 'gate'
 type Wipe = '' | 'in' | 'out'
 
+function initialView(): View {
+  const hash = window.location.hash.replace('#', '')
+  return hash === 'swarm' || hash === 'gate' ? hash : 'hero'
+}
+
 export default function App() {
-  const [view, setView] = useState<View>('hero')
+  const [view, setView] = useState<View>(initialView)
   const [wipe, setWipe] = useState<Wipe>('')
   const busy = useRef(false)
 
@@ -35,6 +41,11 @@ export default function App() {
     setWipe('in')
     window.setTimeout(() => {
       setView(next)
+      window.history.replaceState(
+        null,
+        '',
+        next === 'hero' ? window.location.pathname : `#${next}`,
+      )
       setWipe('out')
       window.setTimeout(() => {
         setWipe('')
@@ -49,7 +60,15 @@ export default function App() {
       <Atmosphere />
       <div className="app__view">
         {view === 'hero' ? (
-          <Hero onEnter={() => navigate('gate')} />
+          <Hero
+            onLaunch={() => navigate('swarm')}
+            onKernel={() => navigate('gate')}
+          />
+        ) : view === 'swarm' ? (
+          <Swarm
+            onBack={() => navigate('hero')}
+            onKernel={() => navigate('gate')}
+          />
         ) : (
           <Checkpoint onBack={() => navigate('hero')} />
         )}

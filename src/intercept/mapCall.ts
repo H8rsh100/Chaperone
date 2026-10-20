@@ -8,6 +8,7 @@ import type { PendingToolCall } from './types'
 
 export function toolNameToKind(toolName: string): ToolKind {
   const n = toolName.toLowerCase()
+  if (n.includes('swarm')) return 'swarm'
   if (n.includes('http') || n.includes('fetch') || n.includes('curl')) return 'http'
   if (n.includes('shell') || n.includes('exec') || n.includes('bash')) return 'shell'
   if (n.includes('write')) return 'fs.write'
