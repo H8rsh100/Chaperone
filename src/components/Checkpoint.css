@@ -68,6 +68,24 @@
   text-shadow: 0 0 24px rgba(127, 90, 240, 0.55);
 }
 
+.gate__live-lab {
+  appearance: none;
+  flex-shrink: 0;
+  border: 1px solid rgba(127, 90, 240, 0.45);
+  border-radius: var(--radius-pill);
+  background: var(--violet-dim);
+  color: var(--violet-soft);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.5rem 0.8rem;
+  transition: border-color 0.16s var(--ease), color 0.16s var(--ease);
+}
+
+.gate__live-lab:hover {
+  border-color: var(--violet);
+  color: var(--ink);
+}
+
 .gate__chips {
   display: flex;
   flex-wrap: wrap;
@@ -1090,6 +1108,18 @@
   background: var(--allow);
   box-shadow: 0 0 10px var(--allow);
   animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@media (max-width: 520px) {
+  .gate__live-lab {
+    margin-left: auto;
+  }
+
+  .gate__nav-status {
+    order: 1;
+    flex-basis: 100%;
+    margin-left: 0;
+  }
 }
 
 /* ============================ RAILS ============================ */

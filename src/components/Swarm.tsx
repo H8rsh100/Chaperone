@@ -340,21 +340,18 @@ export function Swarm({ onBack, onKernel }: Props) {
             {running ? 'SWARM LIVE' : 'CONTROL PLANE'} · {phase.toUpperCase()}
           </span>
           <button type="button" className="swarm__kernel-link" onClick={onKernel}>
-            Chaperone kernel &rarr;
+            Kernel &rarr;
           </button>
         </div>
       </nav>
 
       <header className="swarm__header">
         <div>
-          <p className="swarm__kicker mono">LIVE LAB / SCRIPTED THREE-ROLE DEMO</p>
-          <h1 className="swarm__title">
-            Follow the signal.<br /><em>Guard the boundary.</em>
-          </h1>
+          <p className="swarm__kicker mono">LIVE LAB / SCRIPTED THREE-ROLE SCENARIO</p>
+          <h1 className="swarm__title">Follow the signal. <em>Guard the boundary.</em></h1>
           <p className="swarm__sub">
-            Watch a scripted planner, retriever, and executor encounter a clean or poisoned page.
-            Model analysis highlights evidence; the kernel gates the proposed call. On a hold,
-            a human decides whether the isolated executor can resume on sanitized context.
+            A scripted planner, retriever, and executor encounter a clean or poisoned page.
+            Model evidence is separate from the kernel decision.
           </p>
         </div>
 
@@ -365,7 +362,7 @@ export function Swarm({ onBack, onKernel }: Props) {
             disabled={running || busy}
             onClick={() => void start('poisoned')}
           >
-            Launch poisoned swarm
+            Run poisoned scenario
           </button>
           <button
             type="button"
@@ -377,10 +374,10 @@ export function Swarm({ onBack, onKernel }: Props) {
           </button>
           <span className="swarm__controls-note mono">
             {running
-              ? 'demo sequence streaming…'
+              ? 'scenario streaming…'
               : state
                 ? 'last run recorded'
-                : 'no run yet — launch to begin'}
+                : 'no run yet'}
           </span>
         </div>
       </header>
@@ -395,8 +392,6 @@ export function Swarm({ onBack, onKernel }: Props) {
         {held ? 'Executor isolated. Human decision required. The hold expires and fails closed without a response.' : ''}
       </div>
 
-      <div className="swarm__layout">
-        <div className="swarm__col swarm__col--decision">
           {held && (
             <div className="swarm__card swarm__card--hold" role="region" aria-label="Human containment hold">
               <div className="swarm__hold-head">
@@ -459,28 +454,13 @@ export function Swarm({ onBack, onKernel }: Props) {
               </div>
             </div>
           )}
-          {!held && state?.result && (
-            <div className={`swarm__card swarm__card--result swarm__card--result-${resultTone}`} role="status">
-              <span className={`swarm__phase swarm__phase--${phase}`}>{PHASE_LABEL[phase]}</span>
-              <p className="swarm__result-title">
-                {phase === 'contained'
-                  ? 'Contained. Executor remains isolated.'
-                  : phase === 'complete'
-                    ? 'Demo complete.'
-                    : 'Run ended.'}
-              </p>
-              <p className="swarm__result-text">{state.result}</p>
-              <p className="swarm__result-note mono">
-                {state.isolated.length > 0
-                  ? `isolated: ${state.isolated.join(', ')} · peak ${state.peakContamination}%`
-                  : `no isolation · peak ${state.peakContamination}%`}
-              </p>
-            </div>
-          )}
+
+      <div className="swarm__layout">
+        <div className="swarm__col swarm__col--decision">
           <div className="swarm__card swarm__card--verdict">
             <div className="swarm__card-head">
               <div>
-                <p className="swarm__eyebrow mono">LIVE PROOF / KERNEL</p>
+                <p className="swarm__eyebrow mono">02 / KERNEL</p>
                 <p className="swarm__card-title">Proposed call verdict</p>
                 <p className="swarm__card-note">taint sentinel + policy · not model saliency</p>
               </div>
@@ -518,6 +498,24 @@ export function Swarm({ onBack, onKernel }: Props) {
               </p>
             )}
           </div>
+          {!held && state?.result && (
+            <div className={`swarm__card swarm__card--result swarm__card--result-${resultTone}`} role="status">
+              <span className={`swarm__phase swarm__phase--${phase}`}>{PHASE_LABEL[phase]}</span>
+              <p className="swarm__result-title">
+                {phase === 'contained'
+                  ? 'Contained. Executor remains isolated.'
+                  : phase === 'complete'
+                    ? 'Demo complete.'
+                    : 'Run ended.'}
+              </p>
+              <p className="swarm__result-text">{state.result}</p>
+              <p className="swarm__result-note mono">
+                {state.isolated.length > 0
+                  ? `isolated: ${state.isolated.join(', ')} · peak ${state.peakContamination}%`
+                  : `no isolation · peak ${state.peakContamination}%`}
+              </p>
+            </div>
+          )}
         </div>
         <div className="swarm__col swarm__col--graph">
           <div className="swarm__card swarm__card--stage">
@@ -626,7 +624,7 @@ export function Swarm({ onBack, onKernel }: Props) {
           <div className="swarm__card">
             <div className="swarm__card-head">
               <div>
-                <p className="swarm__eyebrow mono">02 / EVIDENCE</p>
+                <p className="swarm__eyebrow mono">03 / AI EVIDENCE</p>
                 <p className="swarm__card-title">Model analysis</p>
                 <p className="swarm__card-note">
                   contextual evidence · not the blocking decision
@@ -644,7 +642,7 @@ export function Swarm({ onBack, onKernel }: Props) {
                     TOP-RANKED SPAN
                     {topSpan ? ` · RELATIVE OCCLUSION ${Math.round(topSpan.saliency * 100)}%` : ''}
                   </span>
-                  <p className="swarm__span-text">
+                  <p className="swarm__span-text" tabIndex={0}>
                     <MarkCanary
                       text={topSpan?.text ?? 'No span available for analysis.'}
                       canary={saliency.canary}
@@ -658,6 +656,8 @@ export function Swarm({ onBack, onKernel }: Props) {
                   )}
                 </div>
 
+                <details className="swarm__details">
+                  <summary>Detailed signals and token occlusion</summary>
                 <div className="swarm__metrics">
                   <Metric
                     label="Composite span risk"
@@ -694,7 +694,7 @@ export function Swarm({ onBack, onKernel }: Props) {
                         key={`${t.token}-${i}`}
                         className="swarm__token"
                         style={{
-                          backgroundColor: `rgba(255, 82, 82, ${(
+                          backgroundColor: `rgba(222, 166, 86, ${(
                             0.08 +
                             t.saliency * 0.5
                           ).toFixed(3)})`,
@@ -705,6 +705,7 @@ export function Swarm({ onBack, onKernel }: Props) {
                     ))}
                   </div>
                 </div>
+                </details>
               </>
             ) : (
               <p className="swarm__empty">
@@ -720,7 +721,7 @@ export function Swarm({ onBack, onKernel }: Props) {
           <div className="swarm__card swarm__card--log">
             <div className="swarm__card-head">
               <div>
-                <p className="swarm__eyebrow mono">03 / RUN RECORD</p>
+                <p className="swarm__eyebrow mono">04 / RUN RECORD</p>
                 <p className="swarm__card-title">Event stream</p>
                 <p className="swarm__card-note">run events · decisions recorded separately in the ledger</p>
               </div>
@@ -745,7 +746,7 @@ export function Swarm({ onBack, onKernel }: Props) {
                 ))
               ) : (
                 <p className="swarm__empty">
-                  Launch a run to stream planning, retrieval, analysis, isolation, and kernel
+                  Run a scenario to stream planning, retrieval, analysis, isolation, and kernel
                   decisions.
                 </p>
               )}

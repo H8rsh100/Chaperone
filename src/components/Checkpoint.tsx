@@ -15,6 +15,7 @@ import './Checkpoint.css'
 
 type Props = {
   onBack: () => void
+  onLiveLab: () => void
 }
 
 type Decision = 'approved' | 'denied'
@@ -232,7 +233,7 @@ const STATUS_LABEL: Record<Status, string> = {
   failed: 'FAIL',
 }
 
-export function Checkpoint({ onBack }: Props) {
+export function Checkpoint({ onBack, onLiveLab }: Props) {
   const [mode, setMode] = useState<'scenarios' | 'live'>('live')
   const [queue, setQueue] = useState<ToolCall[]>([])
   const [livePending, setLivePending] = useState<LivePending[]>([])
@@ -474,13 +475,16 @@ export function Checkpoint({ onBack }: Props) {
           <span className="gate__back-arrow">&larr;</span>
           Home
         </button>
-        <span className="gate__logo">CHAPERONE</span>
+        <span className="gate__logo">Kernel</span>
         <div className="gate__nav-status">
           <span className="gate__nav-dot" />
           <span className="mono">
             {mode === 'live' ? 'INTERCEPTING · shell + http' : 'OFFLINE DEMO · scripted'}
           </span>
         </div>
+        <button type="button" className="gate__live-lab" onClick={onLiveLab}>
+          Live Lab &rarr;
+        </button>
       </nav>
 
       <div className="gate__layout">

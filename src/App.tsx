@@ -71,7 +71,10 @@ export default function App() {
             onKernel={() => navigate('gate')}
           />
         ) : (
-          <Checkpoint onBack={() => navigate('hero')} />
+          <Checkpoint
+            onBack={() => navigate('hero')}
+            onLiveLab={() => navigate('swarm')}
+          />
         )}
       </div>
       <Cursor />

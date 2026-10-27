@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aegis-Swarm · Stage Demo Video Player</title>
+<style>
+  :root {
+    --bg: #07070a;
+    --card: #0f0f16;
+    --border: rgba(255, 255, 255, 0.08);
+    --accent: #7c5cff;
+    --mint: #27e0b0;
+    --red: #ff4d6d;
+    --ink: #f0f0f8;
+    --muted: #88889c;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: "JetBrains Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+  .header {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  h1 {
+    margin: 4px 0 0;
+    font-size: 26px;
+    letter-spacing: -0.02em;
+  }
+  .badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: rgba(124, 92, 255, 0.15);
+    border: 1px solid var(--accent);
+    color: #cdbfff;
+    padding: 6px 12px;
+    border-radius: 999px;
+  }
+  .player-box {
+    width: 100%;
+    max-width: 1200px;
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+  }
+  video {
+    width: 100%;
+    display: block;
+    max-height: 72vh;
+    background: #000;
+  }
+  .chapters {
+    width: 100%;
+    max-width: 1200px;
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+  }
+  .ch-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .ch-card:hover {
+    border-color: var(--accent);
+    background: rgba(124, 92, 255, 0.08);
+    transform: translateY(-2px);
+  }
+  .ch-time {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .ch-title {
+    margin: 4px 0 2px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .ch-desc {
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .links {
+    margin-top: 30px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    gap: 16px;
+  }
+  a {
+    color: var(--mint);
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="kicker">AI Innovation Challenge 2026 · Demo Rehearsal</div>
+    <h1>Aegis-Swarm Stage Walkthrough Video</h1>
+  </div>
+  <div class="badge">MP4 Video · Full Quality</div>
+</div>
+
+<div class="player-box">
+  <video id="vid" controls autoplay muted loop playsinline>
+    <source src="demo_walkthrough.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+<div class="chapters">
+  <div class="ch-card" onclick="seek(0)">
+    <div class="ch-time">0:00</div>
+    <div class="ch-title">1. Clean Multi-Agent Swarm</div>
+    <p class="ch-desc">Planner, Retrieval, and Execution agents idle at 0% baseline contamination.</p>
+  </div>
+  <div class="ch-card" onclick="seek(4)">
+    <div class="ch-time">0:04</div>
+    <div class="ch-title">2. Poisoned Fetch & Red Taint</div>
+    <p class="ch-desc">Retrieval reads hostile vendor page. Red untrusted edge appears on graph.</p>
+  </div>
+  <div class="ch-card" onclick="seek(10)">
+    <div class="ch-time">0:10</div>
+    <div class="ch-title">3. Neural Occlusion (MiniLM)</div>
+    <p class="ch-desc">75% contamination. Top suspicious span isolates directive & canary token.</p>
+  </div>
+  <div class="ch-card" onclick="seek(16)">
+    <div class="ch-time">0:16</div>
+    <div class="ch-title">4. Node Quarantine & Kernel Gate</div>
+    <p class="ch-desc">Executor isolated on 85% carry. Kernel blocks call with score 56.</p>
+  </div>
+  <div class="ch-card" onclick="seek(22)">
+    <div class="ch-time">0:22</div>
+    <div class="ch-title">5. Containment Hold & Resume</div>
+    <p class="ch-desc">Single-use human hold confirms containment. Swarm resumes on sanitized state.</p>
+  </div>
+  <div class="ch-card" onclick="seek(28)">
+    <div class="ch-time">0:28</div>
+    <div class="ch-title">6. Clean Control Run</div>
+    <p class="ch-desc">Benign page workflow completes at 25% contamination with 0 isolation.</p>
+  </div>
+  <div class="ch-card" onclick="seek(34)">
+    <div class="ch-time">0:34</div>
+    <div class="ch-title">7. Ed25519 Merkle Ledger</div>
+    <p class="ch-desc">Chaperone checkpoint view displaying cryptographically verified chain.</p>
+  </div>
+</div>
+
+<div class="links">
+  <span>Direct file: <strong>demo_walkthrough.mp4</strong></span>
+  <span>•</span>
+  <a href="http://localhost:5174/#swarm">Live Dashboard</a>
+  <span>•</span>
+  <a href="http://localhost:5174/deck/index.html">Presentation Slides</a>
+</div>
+
+<script>
+  const v = document.getElementById('vid');
+  function seek(t) {
+    v.currentTime = t;
+    v.play();
+  }
+</script>
+
+</body>
+</html>

@@ -4,6 +4,7 @@
   isolation: isolate;
   background: var(--bg);
   overflow: hidden;
+  overflow: clip;
 }
 
 .app__view {
