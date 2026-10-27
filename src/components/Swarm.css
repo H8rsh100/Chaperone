@@ -6,6 +6,34 @@
   padding-bottom: 2.5rem;
 }
 
+.swarm__scenario-glow {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 42% 35% at 0 0, var(--scenario-glow), transparent 75%),
+    radial-gradient(ellipse 42% 35% at 100% 0, var(--scenario-glow), transparent 75%),
+    radial-gradient(ellipse 42% 35% at 0 100%, var(--scenario-glow), transparent 75%),
+    radial-gradient(ellipse 42% 35% at 100% 100%, var(--scenario-glow), transparent 75%);
+  box-shadow: inset 0 0 75px var(--scenario-glow);
+  animation: scenario-glow 3.2s ease-out forwards;
+}
+
+.swarm__scenario-glow--poisoned { --scenario-glow: rgba(255, 45, 65, 0.48); }
+.swarm__scenario-glow--benign { --scenario-glow: rgba(39, 216, 133, 0.42); }
+
+@keyframes scenario-glow {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  65% { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swarm__scenario-glow { animation: none; opacity: 0.65; }
+}
+
 .swarm__announcement {
   position: absolute;
   width: 1px;

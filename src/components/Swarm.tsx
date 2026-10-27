@@ -176,6 +176,8 @@ export function Swarm({ onBack, onKernel }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [decisionError, setDecisionError] = useState('')
+  const [scenarioGlow, setScenarioGlow] = useState<'poisoned' | 'benign' | null>(null)
+  const glowTimer = useRef<number | undefined>(undefined)
   const logRef = useRef<HTMLDivElement>(null)
   const pendingVersion = useRef(0)
 
@@ -241,6 +243,8 @@ export function Swarm({ onBack, onKernel }: Props) {
     return () => window.clearInterval(timer)
   }, [])
 
+  useEffect(() => () => window.clearTimeout(glowTimer.current), [])
+
   useEffect(() => {
     const mode =
       contamination >= 65 ? 'deny' : contamination >= 35 ? 'review' : 'allow'
@@ -261,6 +265,9 @@ export function Swarm({ onBack, onKernel }: Props) {
     setBusy(true)
     setError('')
     setDecisionError('')
+    window.clearTimeout(glowTimer.current)
+    setScenarioGlow(mode)
+    glowTimer.current = window.setTimeout(() => setScenarioGlow(null), 3200)
     try {
       const res = await fetch('/api/swarm/run', {
         method: 'POST',
@@ -272,6 +279,8 @@ export function Swarm({ onBack, onKernel }: Props) {
         throw new Error(data.error ?? `run ${res.status}`)
       }
     } catch (err) {
+      window.clearTimeout(glowTimer.current)
+      setScenarioGlow(null)
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setBusy(false)
@@ -325,6 +334,7 @@ export function Swarm({ onBack, onKernel }: Props) {
 
   return (
     <section className={`swarm${held ? ' swarm--held' : ''}`} aria-label="Chaperone live lab">
+      {scenarioGlow && <div className={`swarm__scenario-glow swarm__scenario-glow--${scenarioGlow}`} aria-hidden="true" />}
       <nav className="swarm__nav">
         <button type="button" className="swarm__back" onClick={onBack}>
           <span className="swarm__back-arrow">&larr;</span>
