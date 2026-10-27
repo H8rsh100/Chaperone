@@ -111,19 +111,19 @@ function MarkCanary({ text, canary }: { text: string; canary?: string }) {
   )
 }
 
-function ContaminationRing({ value, peak, analyzed, isolated }: { value: number; peak: number; analyzed: boolean; isolated: boolean }) {
+function ContaminationRing({ value, peak, analyzed, isolated, available }: { value: number; peak: number; analyzed: boolean; isolated: boolean; available: boolean }) {
   const tone = toneFor(value)
   return (
     <div className={`swarm__ring-wrap swarm__ring-wrap--${tone}`}>
       <div className="swarm__ring" style={{ '--p': value } as CSSProperties}>
         <div className="swarm__ring-inner">
-          <strong>{value}</strong>
-          <span className="mono">%</span>
+          <strong>{available ? value : '—'}</strong>
+          {available && <span className="mono">%</span>}
         </div>
       </div>
       <div className="swarm__ring-meta">
         <span className="swarm__ring-label mono">SWARM CONTAMINATION</span>
-        <span className="swarm__ring-peak mono">peak {peak}% · composite estimate</span>
+        <span className="swarm__ring-peak mono">{available ? `peak ${peak}% · composite estimate` : 'composite estimate · awaiting run'}</span>
         <span className={`swarm__ring-verdict swarm__ring-verdict--${tone}`}>
           {isolated
             ? 'executor isolated'
@@ -324,13 +324,13 @@ export function Swarm({ onBack, onKernel }: Props) {
   const tokenHeat = useMemo(() => saliency?.tokens.slice(0, 14) ?? [], [saliency])
 
   return (
-    <section className="swarm" aria-label="Aegis swarm defense">
+    <section className={`swarm${held ? ' swarm--held' : ''}`} aria-label="Chaperone live lab">
       <nav className="swarm__nav">
         <button type="button" className="swarm__back" onClick={onBack}>
           <span className="swarm__back-arrow">&larr;</span>
           Home
         </button>
-        <span className="swarm__logo mono">AEGIS // SWARM</span>
+        <span className="swarm__logo mono">CHAPERONE <span>// LIVE LAB</span></span>
         <div className="swarm__nav-status">
           <span
             className={`swarm__nav-dot${running ? ' swarm__nav-dot--live' : ''}`}
@@ -347,14 +347,14 @@ export function Swarm({ onBack, onKernel }: Props) {
 
       <header className="swarm__header">
         <div>
-          <p className="swarm__kicker mono">SCRIPTED THREE-ROLE DEMO · LIVE PROVENANCE</p>
+          <p className="swarm__kicker mono">LIVE LAB / SCRIPTED THREE-ROLE DEMO</p>
           <h1 className="swarm__title">
-            Three roles. One poisoned page. <em>One</em> guarded boundary.
+            Follow the signal.<br /><em>Guard the boundary.</em>
           </h1>
           <p className="swarm__sub">
-            Follow a scripted planner, retriever, and executor. Model analysis highlights
-            evidence; the kernel's taint sentinel gates the proposed call; a human decides
-            whether the isolated executor can resume on sanitized context.
+            Watch a scripted planner, retriever, and executor encounter a clean or poisoned page.
+            Model analysis highlights evidence; the kernel gates the proposed call. On a hold,
+            a human decides whether the isolated executor can resume on sanitized context.
           </p>
         </div>
 
@@ -379,7 +379,7 @@ export function Swarm({ onBack, onKernel }: Props) {
             {running
               ? 'demo sequence streaming…'
               : state
-                ? `last run ${state.runId}`
+                ? 'last run recorded'
                 : 'no run yet — launch to begin'}
           </span>
         </div>
@@ -396,19 +396,11 @@ export function Swarm({ onBack, onKernel }: Props) {
       </div>
 
       <div className="swarm__layout">
+        <div className="swarm__col swarm__col--decision">
           {held && (
             <div className="swarm__card swarm__card--hold" role="region" aria-label="Human containment hold">
               <div className="swarm__hold-head">
-                <span className="swarm__hold-kicker mono">03 / HUMAN CONTAINMENT HOLD</span>
-                {secondsLeft !== null && (
-                  <span
-                    className={`swarm__hold-timer mono${
-                      secondsLeft <= 3 ? ' swarm__hold-timer--urgent' : ''
-                    }`}
-                  >
-                    {secondsLeft}s remaining
-                  </span>
-                )}
+                <span className="swarm__hold-kicker mono">HUMAN DECISION / CONTAINMENT HOLD</span>
               </div>
               <p className="swarm__hold-title">
                 Executor isolated. Human decision required.
@@ -421,32 +413,50 @@ export function Swarm({ onBack, onKernel }: Props) {
                 <p className="swarm__hold-reason">{state.hold.reason}</p>
               )}
               <div className="swarm__hold-meta mono">
-                <span>{state?.hold?.contamination ?? 0}% contamination estimate</span>
-                <span>role {state?.hold?.agent}</span>
+                {state?.hold && <span>{state.hold.contamination}% contamination estimate</span>}
+                {state?.hold?.agent && <span>role {state.hold.agent}</span>}
                 {saliency?.canary && <span>canary {saliency.canary}</span>}
               </div>
-              <div className="swarm__hold-actions">
-                <button
-                  type="button"
-                  className="swarm__btn swarm__btn--danger"
-                  disabled={busy || !approvalReady}
-                  onClick={() => void decide('deny')}
-                >
-                  Keep isolated
-                </button>
-                <button
-                  type="button"
-                  className="swarm__btn swarm__btn--safe"
-                  disabled={busy || !approvalReady}
-                  onClick={() => void decide('allow')}
-                >
-                  Sanitize &amp; resume
-                </button>
+              <div className="swarm__hold-dock">
+                <div className="swarm__hold-dock-head">
+                  <span className="swarm__hold-dock-label mono">HUMAN DECISION · FAILS CLOSED</span>
+                  {secondsLeft !== null ? (
+                    <span
+                      className={`swarm__hold-timer mono${
+                        secondsLeft <= 3 ? ' swarm__hold-timer--urgent' : ''
+                      }`}
+                    >
+                      {secondsLeft}s remaining
+                    </span>
+                  ) : (
+                    <span className="swarm__hold-dock-status mono">
+                      {busy ? 'Submitting decision' : pending ? 'Deadline unavailable' : error ? 'Review channel unavailable' : 'Opening review channel'}
+                    </span>
+                  )}
+                </div>
+                <div className="swarm__hold-actions">
+                  <button
+                    type="button"
+                    className="swarm__btn swarm__btn--danger"
+                    disabled={busy || !approvalReady}
+                    onClick={() => void decide('deny')}
+                  >
+                    Keep isolated
+                  </button>
+                  <button
+                    type="button"
+                    className="swarm__btn swarm__btn--safe"
+                    disabled={busy || !approvalReady}
+                    onClick={() => void decide('allow')}
+                  >
+                    Sanitize &amp; resume
+                  </button>
+                </div>
+                {decisionError && <p className="swarm__hold-error" role="alert">Decision not accepted: {decisionError}</p>}
+                {!pending && (
+                  <p className="swarm__hold-wait mono">{busy ? 'submitting decision…' : 'opening the human review channel…'}</p>
+                )}
               </div>
-              {decisionError && <p className="swarm__hold-error" role="alert">Decision not accepted: {decisionError}</p>}
-              {!pending && (
-                <p className="swarm__hold-wait mono">opening the human review channel…</p>
-              )}
             </div>
           )}
           {!held && state?.result && (
@@ -467,13 +477,56 @@ export function Swarm({ onBack, onKernel }: Props) {
               </p>
             </div>
           )}
+          <div className="swarm__card swarm__card--verdict">
+            <div className="swarm__card-head">
+              <div>
+                <p className="swarm__eyebrow mono">LIVE PROOF / KERNEL</p>
+                <p className="swarm__card-title">Proposed call verdict</p>
+                <p className="swarm__card-note">taint sentinel + policy · not model saliency</p>
+              </div>
+              {kernel && (
+                <span className={`swarm__kernel-badge swarm__kernel-badge--${kernel.outcome}`}>
+                  {kernel.outcome.replaceAll('_', ' ')}
+                </span>
+              )}
+            </div>
+
+            {kernel ? (
+              <>
+                <div className="swarm__kernel-row">
+                  <span className="swarm__kernel-tool mono">{kernel.toolName}</span>
+                  <span className={`swarm__kernel-score swarm__kernel-score--${toneFor(kernel.score)}`}>
+                    <span className="swarm__kernel-score-label mono">RISK SCORE</span>{kernel.score}
+                  </span>
+                </div>
+                <p className="swarm__kernel-reason">{kernel.reason}</p>
+                {kernel.findings && kernel.findings.length > 0 && (
+                  <div className="swarm__kernel-findings">
+                    {kernel.findings.map((f: Finding) => (
+                      <span key={f.id} className="swarm__finding" title={f.detail}>
+                        <span className="swarm__finding-tag mono">{FINDING_LABEL[f.id] ?? 'Rule'}</span>
+                        {f.title}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="swarm__empty">
+                Awaiting the proposed call. The kernel's taint sentinel checks whether
+                untrusted values reach a sensitive sink; model saliency does not block it.
+              </p>
+            )}
+          </div>
+        </div>
         <div className="swarm__col swarm__col--graph">
           <div className="swarm__card swarm__card--stage">
             <div className="swarm__card-head">
               <div>
+                <p className="swarm__eyebrow mono">01 / SIGNAL FLOW</p>
                 <p className="swarm__card-title">Role provenance graph</p>
                 <p className="swarm__card-note">
-                  planner → retrieval → execution · live taint on every edge
+                  planner → retrieval → execution · observed context and taint
                 </p>
               </div>
               <span
@@ -496,7 +549,7 @@ export function Swarm({ onBack, onKernel }: Props) {
                         className={`swarm__link${tainted ? ' swarm__link--tainted' : ''}`}
                       >
                         <span className="swarm__link-label mono">
-                          {tainted ? 'untrusted' : edge ? 'trusted' : '—'}
+                          {tainted ? 'taint present' : edge ? 'no taint' : '—'}
                         </span>
                         <span className="swarm__link-line">
                           <span className="swarm__link-dot" />
@@ -505,7 +558,7 @@ export function Swarm({ onBack, onKernel }: Props) {
                     )}
                       <article
                         className={`swarm__node swarm__node--${node.status}`}
-                        aria-label={`${node.role} role, ${node.status}, ${node.contamination}% taint estimate`}
+                        aria-label={`${node.role} role, ${node.status}, ${state ? `${node.contamination}% taint estimate` : 'awaiting run'}`}
                     >
                       <div className="swarm__node-head">
                         <span className="swarm__node-role">{node.role}</span>
@@ -525,7 +578,7 @@ export function Swarm({ onBack, onKernel }: Props) {
                         />
                       </div>
                       <div className="swarm__node-meta">
-                        <span className="mono">{node.contamination}% taint</span>
+                        <span className="mono">{state ? `${node.contamination}% taint` : 'awaiting run'}</span>
                         <span className="swarm__node-action">
                           {node.status === 'quarantined'
                             ? 'frozen — state preserved'
@@ -544,23 +597,23 @@ export function Swarm({ onBack, onKernel }: Props) {
             </div>
 
             <div className="swarm__stage-foot">
-              <ContaminationRing value={contamination} peak={peak} analyzed={!!saliency} isolated={!!state?.isolated.length} />
+              <ContaminationRing value={contamination} peak={peak} analyzed={!!saliency} isolated={!!state?.isolated.length} available={!!state} />
               <div className="swarm__counts">
                 <div className="swarm__count">
                   <span className="swarm__count-value mono">
-                    {state?.contexts.length ?? 0}
+                    {state?.contexts.length ?? '—'}
                   </span>
                   <span className="swarm__count-label">context items</span>
                 </div>
                 <div className="swarm__count">
                   <span className="swarm__count-value mono">
-                    {state?.edges.length ?? 0}
+                    {state?.edges.length ?? '—'}
                   </span>
                   <span className="swarm__count-label">provenance edges</span>
                 </div>
                 <div className="swarm__count">
                   <span className="swarm__count-value mono">
-                    {state?.isolated.length ?? 0}
+                    {state?.isolated.length ?? '—'}
                   </span>
                   <span className="swarm__count-label">agents isolated</span>
                 </div>
@@ -573,7 +626,8 @@ export function Swarm({ onBack, onKernel }: Props) {
           <div className="swarm__card">
             <div className="swarm__card-head">
               <div>
-                <p className="swarm__card-title">01 / Model analysis</p>
+                <p className="swarm__eyebrow mono">02 / EVIDENCE</p>
+                <p className="swarm__card-title">Model analysis</p>
                 <p className="swarm__card-note">
                   contextual evidence · not the blocking decision
                 </p>
@@ -654,68 +708,23 @@ export function Swarm({ onBack, onKernel }: Props) {
               </>
             ) : (
               <p className="swarm__empty">
-                No analysis yet. The retriever must fetch untrusted content before Aegis can
+                No analysis yet. The retriever must fetch untrusted content before Chaperone can
                 score it.
               </p>
             )}
           </div>
 
-          <div className="swarm__card">
-            <div className="swarm__card-head">
-              <div>
-                <p className="swarm__card-title">02 / Kernel provenance verdict</p>
-                <p className="swarm__card-note">proposed call · taint sentinel + policy · not model saliency</p>
-              </div>
-              {kernel && (
-                <span className={`swarm__kernel-badge swarm__kernel-badge--${kernel.outcome}`}>
-                  {kernel.outcome.replaceAll('_', ' ')}
-                </span>
-              )}
-            </div>
-
-            {kernel ? (
-              <>
-                <div className="swarm__kernel-row">
-                  <span className="swarm__kernel-tool mono">{kernel.toolName}</span>
-                  <span className={`swarm__kernel-score swarm__kernel-score--${toneFor(kernel.score)}`}>
-                    <span className="swarm__kernel-score-label mono">RISK SCORE</span>{kernel.score}
-                  </span>
-                </div>
-                <p className="swarm__kernel-reason">{kernel.reason}</p>
-                {kernel.findings && kernel.findings.length > 0 && (
-                  <div className="swarm__kernel-findings">
-                    {kernel.findings.map((f: Finding) => (
-                      <span
-                        key={f.id}
-                        className="swarm__finding"
-                        title={f.detail}
-                      >
-                        <span className="swarm__finding-tag mono">
-                          {FINDING_LABEL[f.id] ?? 'Rule'}
-                        </span>
-                        {f.title}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="swarm__empty">
-                Awaiting the proposed call. The kernel's taint sentinel checks whether
-                untrusted values reach a sensitive sink; model saliency does not block it.
-              </p>
-            )}
-          </div>
         </div>
 
         <div className="swarm__col swarm__col--log">
           <div className="swarm__card swarm__card--log">
             <div className="swarm__card-head">
               <div>
+                <p className="swarm__eyebrow mono">03 / RUN RECORD</p>
                 <p className="swarm__card-title">Event stream</p>
                 <p className="swarm__card-note">run events · decisions recorded separately in the ledger</p>
               </div>
-              <span className="swarm__backend mono">{state?.events.length ?? 0}</span>
+              <span className="swarm__backend mono">{state?.events.length ?? '—'}</span>
             </div>
             <div className="swarm__log" ref={logRef} aria-live="polite">
               {state?.events.length ? (
@@ -726,7 +735,7 @@ export function Swarm({ onBack, onKernel }: Props) {
                       <span className={`swarm__event-kind swarm__event-kind--${event.kind} mono`}>
                         {EVENT_LABEL[event.kind]}
                       </span>
-                      <span className="swarm__event-agent mono">{event.agent}</span>
+                      <span className="swarm__event-agent mono">{event.agent === 'aegis' ? 'Chaperone' : event.agent}</span>
                       {typeof event.score === 'number' && (
                         <span className="swarm__event-score mono">{event.score}</span>
                       )}

@@ -1,4 +1,4 @@
-# Aegis-Swarm — Team Brief
+# Chaperone — Team Brief
 
 **Updated:** 22 Oct 2026 · **Milestone:** `92a5077` on `main` · **Event:** AI Innovation Challenge 2026, 28 Oct
 
@@ -11,8 +11,8 @@ the source of truth for decisions.
 ## What we built (one line)
 
 Three scripted roles share one task; the proposed command is fixed. One reads a
-hostile page. The kernel blocks on a canary match and Aegis isolates the executor;
-the decision is recorded in a hash-chained audit with signed checkpoints.
+hostile page. The Chaperone kernel blocks on a canary match and the demo isolates
+the executor; the decision is recorded in a hash-chained audit with signed checkpoints.
 
 **The sentence to remember:** *Innocent command, guilty address.*
 

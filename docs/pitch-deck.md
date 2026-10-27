@@ -1,4 +1,4 @@
-# Aegis-Swarm · Pitch Deck & Run-of-Show
+# Chaperone · Pitch Deck & Run-of-Show
 
 **AI Innovation Challenge 2026 · AISSMS IOIT Pune · 28 Oct 2026**
 Team: **HTML Houdinis** · Domain: Cyber Security & Digital Trust · Slot: 15 min
@@ -24,7 +24,7 @@ keyboard, no overlapping talk.
 | Window | Segment | Speaker |
 |---|---|---|
 | 0:00–0:30 | Hook | A |
-| 0:30–3:30 | Problem → architecture → Aegis → evidence | A → B |
+| 0:30–3:30 | Problem → architecture → Chaperone demo → evidence | A → B |
 | 3:30–8:30 | **Live demo** (six beats) | B drives, C narrates |
 | 8:30–9:30 | Kernel + ledger | C |
 | 9:30–10:30 | Close | A |
@@ -44,21 +44,21 @@ keyboard, no overlapping talk.
 
 ## Slide 2 — Agents no longer fail alone (0:30–1:15) — *A*
 
-**On screen:** two columns. Left: "Content guardrails — what one model *says*." Right (highlighted): "Aegis-Swarm — context across scripted roles."
+**On screen:** two columns. Left: "Content guardrails — what one model *says*." Right (highlighted): "Chaperone — context across scripted roles."
 
 **Verbatim:**
-> "Content filters decide what a model says. Aegis adds a control at the action boundary. In our scripted workflow, context items record their parents and origin. When the sentinel matches the page's canary in the fixed executor call, the kernel blocks it and Aegis isolates the executor — not the whole run. A human confirms containment."
+> "Content filters decide what a model says. Chaperone adds a control at the action boundary. In our scripted workflow, context items record their parents and origin. When the sentinel matches the page's canary in the fixed executor call, the Chaperone kernel blocks it and the demo isolates the executor — not the whole run. A human confirms containment."
 
 ## Slide 3 — Two layers, one decision (1:15–2:30) — *A → B*
 
-**On screen:** two diagrams. First the kernel: `rules → embeddings → taint sentinel → policy → allowlist → ledger`. Then Aegis: `planner → retriever → taint graph → saliency → kernel → isolation → ledger`.
+**On screen:** two diagrams. First the Chaperone kernel: `rules → embeddings → taint sentinel → policy → allowlist → ledger`. Then the Chaperone demo: `planner → retriever → taint graph → saliency → kernel → isolation → ledger`.
 
 **Verbatim (A):**
 > "The kernel is the execution boundary. Deterministic rules catch known patterns; a quantized MiniLM adds semantic evidence; the sentinel matches markers or content overlap from observed untrusted sources in sink arguments; then policy, an allowlist, and a hash-chained ledger. This is not general data-flow tracking or a min-cut.
 >
-> Aegis is the layer above it. It removes spans one at a time and measures how the page embedding changes. That is analysis evidence, not causal attribution. We combine it with other signals into a contamination score. In this demo the sentinel's canary match, not the model score, drives isolation. **B** will show the numbers."
+> The Chaperone demo adds a workflow above the kernel. It removes spans one at a time and measures how the page embedding changes. That is analysis evidence, not causal attribution. We combine it with other signals into a contamination score. In this demo the sentinel's canary match, not the model score, drives isolation. **B** will show the numbers."
 
-## Slide 4 — Aegis-Swarm (2:30–3:00) — *B*
+## Slide 4 — Chaperone demo (2:30–3:00) — *B*
 
 **On screen:** the agent graph, the contamination ring, the top span with `ZQ7XK2M9` highlighted.
 
@@ -94,11 +94,11 @@ keyboard, no overlapping talk.
 6. **Human hold.** The executor is isolated; the planner and retriever keep their state. Click **Keep isolated** → `contained`. Then **Run clean control** → `executed`, no isolation.
 
 **Verbatim (C, narrating):**
-> "Watch this scripted three-role workflow. The planner is done. The retriever just fetched a hostile page. Aegis highlights analysis evidence, and the contamination ring jumps. The executor inherits the page; the edge is red.
+> "Watch this scripted three-role workflow. The planner is done. The retriever just fetched a hostile page. Chaperone highlights analysis evidence, and the contamination ring jumps. The executor inherits the page; the edge is red.
 >
 > Now the interesting part: the fixed proposal is a harmless `echo`. The sentinel matches its canary to the observed page, and the kernel blocks it at 56. That marker match, not the model score, drives isolation; the proposed command never runs.
 >
-> Aegis isolates **only the executor**. The planner and retriever don't lose their context, because the swarm doesn't have to die to be safe. Here's the human hold — I keep it isolated. The ledger records the containment. Now the clean control: same workflow, benign page, no isolation, the call executes. That contrast is the product."
+> Chaperone isolates **only the executor**. The planner and retriever keep their context in this demo. Here's the human hold — I keep it isolated. The ledger records the containment. Now the clean control: same workflow, benign page, no isolation, the call executes."
 
 > **Fail-closed beat (if time):** start another poisoned run and **do not answer** the hold. "No response — the 20-second window closes — the executor stays isolated. Silence is never permission."
 
@@ -116,7 +116,7 @@ keyboard, no overlapping talk.
 **On screen:** one line — **"Every agent gets tools. Every action gets a checkpoint."** Then: taint graph · saliency · isolate one agent · fail-closed.
 
 **Verbatim (A):**
-> "Aegis-Swarm explores taint defense across a scripted three-role workflow: it gates an action, isolates the executor on a canary match, and records tamper-evident evidence. It can run locally with a preloaded model cache; we rehearse in airplane mode. We're **HTML Houdinis** — thank you."
+> "Chaperone explores taint defense across a scripted three-role workflow: it gates an action, isolates the executor on a canary match, and records tamper-evident evidence. It can run locally with a preloaded model cache; we rehearse in airplane mode. We're **HTML Houdinis** — thank you."
 
 ---
 
@@ -126,7 +126,7 @@ keyboard, no overlapping talk.
 > "A detector judges a message. Our demo gates the action and records context across roles. The sentinel matches a marker or content overlap from an observed untrusted source in a sink call; it is not general provenance tracking or a min-cut. The canary match gates this fixed `echo`."
 
 **Q2. "What's the latency and cost?"**
-> "On the curated kernel benchmark, p95 is 81 ms, dominated by a MiniLM forward pass; rules are ~2 ms. That is kernel-only, not end-to-end swarm latency. Aegis also runs occlusion analysis before the proposed call. The model cache must be preloaded for our airplane-mode drill."
+> "On the curated kernel benchmark, p95 is 81 ms, dominated by a MiniLM forward pass; rules are ~2 ms. That is kernel-only, not end-to-end swarm latency. The Chaperone demo also runs occlusion analysis before the proposed call. The model cache must be preloaded for our airplane-mode drill."
 
 **Q3. "Why isolate one agent instead of killing the run?"**
 > "In this scripted scenario, the marker match lets us freeze the executor, keep the planner and retriever state, and optionally resume on a sanitized context after a human confirms. It does not establish general isolation for arbitrary workflows."

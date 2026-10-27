@@ -1,14 +1,14 @@
-# Aegis-Swarm
+# Chaperone
 
-Real-time taint defense for multi-agent swarms — with the **Chaperone** execution kernel underneath.
+A multi-agent security demo with taint analysis and the **Chaperone kernel** at the execution boundary.
 
-A planner, a retriever, and an executor share one task. The retriever fetches an untrusted page; Aegis scores that content with an offline embedding model, follows its provenance across the agent graph, and isolates the one agent whose next call depends on it. The kernel still authorizes every tool call, a human still confirms containment, and every decision is still chained into the Ed25519-anchored ledger.
+Three scripted roles share one task: a planner, a retriever, and an executor. The retriever fetches an untrusted page; Chaperone analyzes the content and records its lineage across the agent graph. In the poisoned demo, the Chaperone kernel blocks a fixed proposed call on a canary match, and Chaperone isolates the executor for human review. Decisions are recorded in a hash-chained ledger with Ed25519-signed checkpoints.
 
-**Pitch line:** Watch a three-agent swarm get poisoned live — and lose only one agent.
+**Pitch line:** Follow a poisoned page through three scripted roles and watch the kernel gate the proposed action.
 
 ## What is true in this repo today
 
-- A real 3-agent workflow (`planner` → `retriever` → `executor`) with a **live provenance graph**
+- A scripted 3-role workflow (`planner` → `retriever` → `executor`) with a **live provenance graph** and fixed proposed command
 - Real tool execution (`http_fetch`, `shell_command`) through the same gate as every other integration
 - **Neural saliency** over untrusted context: occlusion, embedding drift, imperative density, and high-entropy markers
 - A **0–100% contamination metric** plus per-agent taint, with the top suspicious span and token heatmap on screen
@@ -16,7 +16,7 @@ A planner, a retriever, and an executor share one task. The retriever fetches an
 - A **fail-closed human hold** (`swarm_quarantine`) for containment: deny keeps the executor isolated; allow resumes it on a sanitized context
 - The Chaperone **kernel** denies the tainted call itself (score 56, `taint-flow`) before execution
 - **Tamper-evident audit**: every fetch, block, isolation, and human decision is in the hash-chained ledger
-- No cloud call, no new runtime dependencies, local fixtures only
+- Local fixtures in the scripted demo; preload the model cache and verify offline operation before presenting
 
 ## Run the swarm demo
 
@@ -36,12 +36,12 @@ The poisoned run, beat by beat:
 
 1. **Planner** publishes a trusted plan (context id, lineage recorded).
 2. **Retriever** calls `http_fetch` — a real allowlisted tool call, not a UI fake.
-3. **Aegis** segments the page, removes spans one at a time, and measures the embedding drift of the remaining evidence. The directive span is the most salient; the canary is highlighted in the UI.
+3. **Chaperone** segments the page, removes spans one at a time, and measures the embedding drift of the remaining evidence. The directive span is the most salient; the canary is highlighted in the UI.
 4. **Contamination** is computed from saliency, drift, context bleed, marker presence, and taint carry-over. The graph shows the untrusted edge from retrieval to execution.
-5. **Executor** proposes `echo ZQ7XK2M9`. Chaperone's taint sentinel sees the canary cross the agent boundary and **blocks the call** (`blocked_by_policy`, score 56).
-6. **Aegis isolates the executor** — not the run. The planner and retriever keep their state. A human hold opens with a countdown:
-   - **Keep isolated** → run settles `contained`; the tainted lineage is discarded.
-   - **Sanitize & resume** → the executor is released on a fresh, trusted context; a safe action executes through the kernel.
+5. **Executor** proposes `echo ZQ7XK2M9`. The Chaperone kernel's taint sentinel matches the canary and **blocks the call** (`blocked_by_policy`, score 56).
+6. **Chaperone isolates the executor** — not the run. The planner and retriever keep their state. A human hold opens with a countdown:
+   - **Keep isolated** → run settles `contained`; the prior context remains visible in the graph.
+   - **Sanitize & resume** → the executor is released on a replacement context; a fixed safe action executes through the kernel.
    - No response → fail-closed; the executor stays isolated.
 
 The clean control run completes with `executed`, zero isolation, and no carry-over.
@@ -58,10 +58,10 @@ POST /api/chaperone/decide  {"id":..., "decision":"allow|deny", "token":...}
 
 The hold is a signed, call-bound, single-use decision — a token for one containment cannot approve another. The runtime is in `server/swarm/runtime.ts`; the pure orchestrator is in `src/swarm/orchestrator.ts` and runs in tests with injected kernel deps.
 
-## How Aegis works
+## How the Chaperone demo works
 
 The proposed distributed, formally specified upgrade is documented in the
-[Aegis-Swarm v2 engineering blueprint](docs/aegis-swarm-v2-blueprint.md). It
+[v2 engineering blueprint](docs/aegis-swarm-v2-blueprint.md). It
 separates probabilistic attribution from the hard lineage authorization rule
 and defines the graph, transport, crypto, fault, and benchmark contracts.
 
@@ -92,7 +92,7 @@ contamination = 100 × clamp(
 The backend is **ONNX MiniLM-L6-v2** when the model is warm (384-d, q8, offline), with the deterministic hashing vectorizer as a fallback. The UI labels which backend produced the run. Calibration on the local fixtures: poisoned runs land around **70–80%**, clean controls around **20–45%**, with the top span and top tokens on the injected directive and canary.
 
 ### Isolation and resume
-The circuit breaker is **provenance, not a fuzzy score alone**: Aegis isolates when a value from untrusted context reaches the proposed call (`carry ≥ 0.5`). That is the canary crossing the boundary. The executor’s command is never executed; the kernel has already denied it. The hold asks the operator to confirm containment. On **allow**, Aegis freezes the tainted lineage, releases the executor on a sanitized context, and runs a benign action through the kernel. On **deny** or timeout, the agent stays isolated.
+The circuit breaker uses **matched provenance evidence, not a fuzzy score alone**: in this demo, Chaperone isolates when the sentinel matches the canary from untrusted context in the proposed call (`carry ≥ 0.5`). The proposed command is blocked in this scenario. On **allow**, the demo releases the executor with replacement context and runs a fixed benign action through the kernel; the earlier context remains in the graph. On **deny** or timeout, the executor role stays isolated.
 
 ### Kernel + ledger
 The swarm calls the same `adjudicate` path as the Anthropic loop and the MCP gateway. The kernel’s taint finding carries structured evidence back into the graph and the audit. Fetch, block, isolation, and hold decisions are appended to the fsync’d hash chain; Merkle anchors are signed with Ed25519.
@@ -110,11 +110,11 @@ npm run bench             # labeled corpus: recall, FPR, ROC-AUC, latency
 
 `swarm:acceptance` drives the live API end-to-end and asserts the ledger contains the containment decision and the kernel denial. `bench` is the kernel's "prove it works" number: per-case table, Wilson interval, false-positive rate, ROC-AUC, and p50/p95 latency. Grow the corpus in `scripts/corpus.mjs`; full output lands in `docs/benchmarks.md`.
 
-## Chaperone execution kernel
+## Chaperone kernel
 
 Human-in-the-loop firewall for AI agent tool calls.
 
-Chaperone runs a **real Anthropic tool-use loop**. Every `tool_use` block is scored by `inspect.ts` **before** execution. Auto-deny never runs the tool. Review **genuinely suspends the agent** on a Promise until you Approve or Deny in the UI. Allow executes **real** shell (allowlisted) or HTTP fetch.
+The Chaperone kernel supports a **real Anthropic tool-use loop**. Every `tool_use` block is scored by `inspect.ts` **before** execution. Auto-deny never runs the tool. Review **genuinely suspends the agent** on a Promise until you Approve or Deny in the UI. Allow executes **real** shell (allowlisted) or HTTP fetch.
 
 Defense in depth: **risk scoring**, a **semantic second opinion**, and a **hard tool allowlist**, so a bad approve still cannot run arbitrary binaries.
 
@@ -176,13 +176,13 @@ Keyword and intent scoring judge a call **in isolation**. Indirect injection win
 
 It is wired into `adjudicate.ts`, the single gate shared by the Anthropic loop, the MCP gateway, and the swarm, so every integration gets provenance checking for free. Demo: the **Indirect** button fetches `/fixtures/injection`, then blocks the follow-up `echo` at 85% confidence (`blocked_by_policy`, score 56).
 
-The Aegis swarm uses the same evidence: the carry-over confidence becomes the swarm's taint-carry metric, and the kernel record is shown next to the isolation.
+The Chaperone demo uses the same evidence: the carry-over confidence becomes the swarm's taint-carry metric, and the kernel record is shown next to the isolation.
 
 ### Hard allowlist
 
 `toolRegistry.ts` validates every shell command as a token stream and rejects shell metacharacters **before** executing, closes the first-token-chaining bypass, runs `echo`/`ls`/`dir`/`pwd`/`whoami` as pure JS builtins, drops `node`, and permits exactly `npm test` and `npm run build` (no `npm ci`, no arbitrary `npm run <script>`, no appended args).
 
-Config: `CHAPERONE_REVIEW_TIMEOUT_MS` (default `8000` in dev, `30000` in production). The Aegis containment hold requests a **20 s** window so the operator can read the graph; the kernel's own review tier keeps the global timeout.
+Config: `CHAPERONE_REVIEW_TIMEOUT_MS` (default `8000` in dev, `30000` in production). The Chaperone containment hold requests a **20 s** window so the operator can read the graph; the kernel's own review tier keeps the global timeout.
 
 ### Tamper-evident audit
 
@@ -212,7 +212,7 @@ npm test
 ## Stack
 
 - Vite + React + TypeScript
-- Aegis-Swarm core (`src/swarm`): provenance graph, saliency, orchestrator
+- Chaperone swarm demo (`src/swarm`): provenance graph, saliency, orchestrator
 - Framework-agnostic kernel intercept (`src/intercept`)
 - Vite middleware gate (`server/`) for Promise-based human review
 - Durable hash-chained ledger + Ed25519-signed Merkle anchors (`server/audit/`)

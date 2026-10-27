@@ -1,5 +1,5 @@
 /**
- * Aegis-Swarm acceptance: drives the live API through a poisoned run and a
+ * Chaperone swarm acceptance: drives the live API through a poisoned run and a
  * clean control run, asserting isolation, kernel denial, hold resolution, and
  * the sanitized resume. Start `npm run dev`, then `npm run swarm:acceptance`.
  */
@@ -216,7 +216,7 @@ async function resumedRun() {
 }
 
 async function main() {
-  console.log(`Aegis-Swarm acceptance against ${BASE}`)
+  console.log(`Chaperone swarm acceptance against ${BASE}`)
   await poisonedRun()
   await benignRun()
   await resumedRun()
@@ -227,10 +227,10 @@ async function main() {
     console.log('failed:', failed.map((r) => r.name).join(' | '))
     process.exit(1)
   }
-  console.log('Aegis-Swarm acceptance passes.')
+  console.log('Chaperone swarm acceptance passes.')
 }
 
 main().catch((err) => {
-  console.error('\nAegis-Swarm acceptance failed:', err.message)
+  console.error('\nChaperone swarm acceptance failed:', err.message)
   process.exit(1)
 })

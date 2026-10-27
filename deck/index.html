@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Aegis-Swarm — Pitch</title>
+<title>Chaperone — Pitch</title>
 <style>
   :root {
     --bg: #060608;
@@ -86,8 +86,8 @@
 <!-- 0 title -->
 <section class="slide active" data-notes="Hold here while the room settles. Do not read the slide — the hook is spoken.">
   <div class="kicker">AISSMS IOIT · AI Innovation Challenge 2026</div>
-  <h1>Aegis-Swarm</h1>
-  <p class="serif" style="font-size:clamp(20px,3vw,40px);color:#bdbdcd">Real-time taint defense for multi-agent swarms.</p>
+  <h1>Chaperone</h1>
+  <p class="serif" style="font-size:clamp(20px,3vw,40px);color:#bdbdcd">A multi-agent security demo.</p>
   <div><span class="chip">taint graph</span><span class="chip">neural saliency</span><span class="chip">agent isolation</span><span class="chip">Chaperone kernel</span></div>
 </section>
 
@@ -111,7 +111,7 @@
       <p>Judge what one model <em>says</em>. Input/output filters, prompt scanning, one message at a time.</p>
     </div>
     <div class="card hot">
-      <h3>Aegis-Swarm</h3>
+      <h3>Chaperone</h3>
       <p>Tracks <strong>context across scripted roles</strong>, isolates the executor on a taint match, and gates the action itself. Fail-closed. Recorded.</p>
     </div>
   </div>
@@ -132,9 +132,9 @@
   <p class="muted">Deterministic first. Local model with a preloaded cache. A sentinel matches markers and overlap from observed sources. Human review and an allowlist are backstops.</p>
 </section>
 
-<!-- 3.5 aegis -->
-<section class="slide" data-notes="AEGIS (A → B). This is a scripted three-role workflow with a fixed proposed command, not autonomous agents choosing actions. Occlusion measures embedding change, not causal attribution. The canary match in the kernel finding drives isolation; the model supplies analysis evidence, not the isolation decision.">
-  <div class="kicker">Aegis-Swarm: the layer above the kernel</div>
+<!-- 3.5 swarm demo -->
+<section class="slide" data-notes="CHAPERONE DEMO (A → B). This is a scripted three-role workflow with a fixed proposed command, not autonomous agents choosing actions. Occlusion measures embedding change, not causal attribution. The canary match in the kernel finding drives isolation; the model supplies analysis evidence, not the isolation decision.">
+  <div class="kicker">Chaperone: the multi-agent demo</div>
   <h2 style="max-width:30ch">Follow the data, not just the command.</h2>
   <div class="flow">
     <span class="node">planner <span class="muted">trusted</span></span><span class="arrow">→</span>
@@ -145,7 +145,7 @@
     <span class="node">isolation <span class="muted">match carry ≥ 0.5</span></span><span class="arrow">→</span>
     <span class="node hot">Ed25519 ledger</span>
   </div>
-  <p class="muted">Scripted planner, retriever, executor; fixed command. The kernel blocks on a canary match; Aegis isolates the executor. A human can keep it isolated or resume on a sanitized context.</p>
+  <p class="muted">Scripted planner, retriever, executor; fixed command. The Chaperone kernel blocks on a canary match; the demo isolates the executor. A human can keep it isolated or resume on a sanitized context.</p>
 </section>
 
 <!-- 4 evidence -->
@@ -200,7 +200,7 @@
 
 <!-- 7 close -->
 <section class="slide" data-notes="CLOSE (A). Slow down. Then stop talking and take questions.">
-  <div class="kicker">Aegis-Swarm</div>
+  <div class="kicker">Chaperone</div>
   <h1 style="max-width:26ch">Every agent gets tools. Every action gets a <span class="serif accent">checkpoint</span>.</h1>
   <div><span class="chip">taint graph</span><span class="chip">saliency</span><span class="chip">isolate one agent</span><span class="chip">fail-closed</span></div>
   <p class="serif" style="color:#bdbdcd">HTML Houdinis — thank you.</p>
