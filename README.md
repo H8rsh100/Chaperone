@@ -138,9 +138,6 @@ static build or `vite preview` alone is not the demonstrated API server.
 5. Optionally run the poisoned scenario again and select **Sanitize & resume**
    to exercise the fixed replacement action.
 
-The exact observations depend on the selected model backend and live runtime.
-The [10-minute presentation script](docs/ten-minute-presentation.md) provides
-speaker handoffs, demo cues, and Q&A.
 
 ## Kernel and integrations
 
