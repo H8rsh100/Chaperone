@@ -60,6 +60,11 @@ The hold is a signed, call-bound, single-use decision — a token for one contai
 
 ## How Aegis works
 
+The proposed distributed, formally specified upgrade is documented in the
+[Aegis-Swarm v2 engineering blueprint](docs/aegis-swarm-v2-blueprint.md). It
+separates probabilistic attribution from the hard lineage authorization rule
+and defines the graph, transport, crypto, fault, and benchmark contracts.
+
 ### Provenance graph (`src/swarm/graph.ts`)
 Every context item records its parents, origin, trust, inherited taint, and saliency. `addContext` links an item to its parents and computes taint as `untrusted → 1`; `recompute` derives per-agent contamination as the worst tainted item, discounted by saliency (`100 × taint × (0.55 + 0.45 × saliency)`). `quarantine` is node-local: it freezes one agent and leaves the rest of the graph intact. `snapshot` is a detached clone, so the API can stream state safely.
 
