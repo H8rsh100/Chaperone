@@ -92,7 +92,7 @@
 </section>
 
 <!-- 1 hook -->
-<section class="slide" data-notes="HOOK (A, 30s). Deliver verbatim, slowly. Land on 'we can prove it.'">
+<section class="slide" data-notes="HOOK (A, 30s). This is an illustrative failure, not the scripted demo. Land on the need for a verifiable checkpoint.">
   <div class="kicker">The failure mode</div>
   <div class="term">
     <div><span class="c">$</span> agent: <span>cat .env</span></div>
@@ -112,13 +112,13 @@
     </div>
     <div class="card hot">
       <h3>Aegis-Swarm</h3>
-      <p>Follows <strong>provenance across agents</strong>, isolates the one that is tainted, and gates the action itself. Fail-closed. Recorded.</p>
+      <p>Tracks <strong>context across scripted roles</strong>, isolates the executor on a taint match, and gates the action itself. Fail-closed. Recorded.</p>
     </div>
   </div>
 </section>
 
 <!-- 3 architecture -->
-<section class="slide" data-notes="ARCHITECTURE (A → B). Rules catch known attacks in µs. MiniLM embeddings catch paraphrases. The provenance sentinel catches indirect injection — data from an untrusted page reaching a shell/db/email sink. LLM is off the hot path. Allowlist is the backstop. Then hand to B for numbers.">
+<section class="slide" data-notes="ARCHITECTURE (A → B). Rules catch known patterns; MiniLM adds semantic evidence. The sentinel matches markers or content overlap between observed untrusted sources and sink arguments, not general information flow or a min-cut. LLM is off the hot path. Allowlist is the backstop.">
   <div class="kicker">Inside the kernel: four layers, one decision</div>
   <div class="flow">
     <span class="node">rules <span class="muted">µs</span></span><span class="arrow">→</span>
@@ -129,62 +129,63 @@
     <span class="node">execution allowlist</span><span class="arrow">→</span>
     <span class="node hot">hash-chained ledger</span>
   </div>
-  <p class="muted">Deterministic first. A real model second, fully offline. A sentinel that tracks <em>where the data came from</em>. Human in the loop for ambiguity. A hard allowlist as the backstop.</p>
+  <p class="muted">Deterministic first. Local model with a preloaded cache. A sentinel matches markers and overlap from observed sources. Human review and an allowlist are backstops.</p>
 </section>
 
 <!-- 3.5 aegis -->
-<section class="slide" data-notes="AEGIS (A → B). Aegis is the layer above the kernel: it sees context move between agents, not just the final command. The retriever fetches a poisoned page; saliency finds the directive and the canary; the executor's harmless echo carries the taint; the kernel blocks it; Aegis isolates only the executor. Then hand to B for the live demo.">
+<section class="slide" data-notes="AEGIS (A → B). This is a scripted three-role workflow with a fixed proposed command, not autonomous agents choosing actions. Occlusion measures embedding change, not causal attribution. The canary match in the kernel finding drives isolation; the model supplies analysis evidence, not the isolation decision.">
   <div class="kicker">Aegis-Swarm: the layer above the kernel</div>
   <h2 style="max-width:30ch">Follow the data, not just the command.</h2>
   <div class="flow">
     <span class="node">planner <span class="muted">trusted</span></span><span class="arrow">→</span>
     <span class="node">retriever <span class="muted">untrusted fetch</span></span><span class="arrow">→</span>
     <span class="node hot">taint graph <span class="muted">lineage</span></span><span class="arrow">→</span>
-    <span class="node hot">saliency <span class="muted">MiniLM, offline</span></span><span class="arrow">→</span>
-    <span class="node">isolation <span class="muted">carry ≥ 0.5</span></span><span class="arrow">→</span>
+    <span class="node hot">saliency <span class="muted">analysis evidence</span></span><span class="arrow">→</span>
     <span class="node">Chaperone kernel <span class="muted">fail-closed</span></span><span class="arrow">→</span>
+    <span class="node">isolation <span class="muted">match carry ≥ 0.5</span></span><span class="arrow">→</span>
     <span class="node hot">Ed25519 ledger</span>
   </div>
-  <p class="muted">Aegis sees the <em>context boundary</em>. Chaperone sees the <em>action</em>. The kernel blocks the call; Aegis freezes the one agent that carried it. A human confirms containment, and the swarm resumes on a sanitized context — or stays isolated.</p>
+  <p class="muted">Scripted planner, retriever, executor; fixed command. The kernel blocks on a canary match; Aegis isolates the executor. A human can keep it isolated or resume on a sanitized context.</p>
 </section>
 
 <!-- 4 evidence -->
-<section class="slide" data-notes="EVIDENCE (B). Say the sample size and CI out loud. Mention the bug the harness found and the two known misses — honesty is scored.">
+<section class="slide" data-notes="EVIDENCE (B). This is a 35-case author-curated kernel set, 25 positives and 10 benign, not a held-out benchmark. Two semantic examples are not an independent evaluation. Latency is kernel only. Mention the two known misses.">
   <div class="kicker">Measured, not claimed</div>
   <div style="display:flex;align-items:center;gap:5vw;flex-wrap:wrap">
     <div>
       <div class="big accent">92%</div>
-      <p class="muted mono" style="font-size:14px">recall · Wilson 95%: 75.0–97.8% · N=35</p>
+      <p class="muted mono" style="font-size:14px">recall · Wilson 95%: 75.0–97.8% · 25 positives</p>
     </div>
     <table class="metrics">
       <tr><td>Precision</td><td>100%</td></tr>
       <tr><td>False-positive rate</td><td>0.0%</td></tr>
       <tr><td>ROC-AUC</td><td>0.960</td></tr>
       <tr><td>Recall @ FPR ≤ 1%</td><td>92.0%</td></tr>
-      <tr><td>Latency p50 / p95</td><td>39 ms / 81 ms</td></tr>
+      <tr><td>Kernel latency p50 / p95</td><td>39 ms / 81 ms</td></tr>
     </table>
   </div>
-  <p class="muted">Swarm calibration on the local fixtures: poisoned runs <strong>70–80%</strong>, clean controls <strong>20–45%</strong>; the top span and canary are the injected directive.</p>
+  <p class="muted">35 author-curated kernel cases (25 gated, 10 benign); two semantic examples, not an independent evaluation. Swarm fixture scores are separate: poisoned <strong>70–80%</strong>, clean <strong>20–45%</strong>.</p>
+  <p class="muted">Paired MiniLM ablation on the same cases: <strong>22/25 → 23/25</strong> positives gated; 0/10 false positives in both arms. Baseline reconstructed from verdicts.</p>
   <p class="muted">Two obfuscation classes still miss — string-splitting and hex. Documented, not hidden.</p>
 </section>
 
 <!-- 5 demo -->
-<section class="slide" data-notes="DEMO (B drives, C narrates). Launch the poisoned swarm. Point at the canary and the contamination ring, then the kernel's 56. Resolve the hold as Keep isolated. Then run the clean control. If the API stalls, reload the page; never a recording.">
+<section class="slide" data-notes="DEMO (B drives, C narrates). State that the three roles and proposed command are scripted. Point at the analysis evidence and the canary match that drives isolation, then the kernel's 56. Resolve the hold as Keep isolated. Run the clean control. If the API stalls, reload; never a recording.">
   <div class="kicker">Live demo · the poisoned swarm</div>
   <ul class="beats">
     <li><span class="n">01</span><span>Planner publishes a plan → <strong>trusted lineage</strong> begins</span></li>
     <li><span class="n">02</span><span>Retriever fetches the poisoned page → <strong>real <code>http_fetch</code></strong></span></li>
-    <li><span class="n">03</span><span>Saliency finds the directive and canary → <strong>70%+ contamination</strong></span></li>
+    <li><span class="n">03</span><span>Occlusion highlights evidence → <strong>fixture contamination score</strong></span></li>
     <li><span class="n">04</span><span>Taint crosses into the executor → <strong>red provenance edge</strong></span></li>
-    <li><span class="n">05</span><span>Harmless <code>echo</code> → kernel blocks on provenance, <strong>score 56</strong></span></li>
-    <li><span class="n">06</span><span>Human hold → <strong>isolate one agent</strong>; clean control passes</span></li>
+    <li><span class="n">05</span><span>Fixed <code>echo ZQ7XK2M9</code> → marker match blocks, <strong>score 56</strong></span></li>
+    <li><span class="n">06</span><span>Match drives executor isolation → <strong>human hold</strong>; clean control passes</span></li>
   </ul>
   <p class="muted mono">executed · blocked_by_policy · denied_by_human · failed_closed · contained · sanitized resume</p>
 </section>
 
 <!-- 6 ledger -->
-<section class="slide" data-notes="PROOF (C). healthz shows model warm + chain verified. Tamper one byte live — flip the tail to BROKEN AT ENTRY n. That is the compliance story.">
-  <div class="kicker">Prove it happened</div>
+<section class="slide" data-notes="PROOF (C). Health verifies local chain and anchors using their embedded keys. Tamper one byte and re-verify. Independent assurance needs a separately trusted public key and retained checkpoint; this does not authenticate the operator.">
+  <div class="kicker">Check the record</div>
   <div class="term">
     <div><span class="c">$</span> curl /healthz</div>
     <div><span class="g">{"ok":true,"chain":"verified","anchored":1,"anchors":"verified"}</span></div>
@@ -194,7 +195,7 @@
     <div><span class="c">$</span> # edit one hash of history, re-verify</div>
     <div><span class="r">{"chain":"broken","anchors":"Merkle root mismatch"}</span></div>
   </div>
-  <p class="muted">Append-only · each entry hashes the last · Merkle root signed with Ed25519 · approvals signed, call-bound, single-use.</p>
+  <p class="muted">Hash chain · Ed25519-signed Merkle root · call-bound, single-use approval tokens. Independent verification needs a trusted key and retained checkpoint; operator identity is not independently authenticated.</p>
 </section>
 
 <!-- 7 close -->

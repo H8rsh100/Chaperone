@@ -15,10 +15,8 @@ import type { AgentId, SwarmState } from './types'
  * Aegis-Swarm orchestrator.
  *
  * Planner → Retrieval → Execution. Every tool call still crosses the Chaperone
- * kernel (`adjudicate`), so the swarm cannot execute around the gate. Aegis adds
- * what the kernel cannot see on its own: provenance across agent boundaries,
- * neural saliency of untrusted context, and node-local isolation before the
- * dangerous call is even attempted.
+ * kernel (`adjudicate`). Aegis visualizes context lineage and embedding-based
+ * analysis, then marks the executor isolated when the kernel reports taint carry.
  */
 
 export interface IsolationHoldRequest {
@@ -136,7 +134,7 @@ export async function runAegisSwarm(
       ? String((fetched.result as { body?: unknown }).body ?? fixture.page)
       : fixture.page
   const page = body.slice(0, 4000)
-  graph.setStatus('retriever', 'active', 'http_fetch executed')
+  graph.setStatus('retriever', 'done', 'http_fetch executed')
   graph.event('fetch', 'retriever', `Retrieved ${fixture.url} (${page.length} chars)`, 0)
 
   const retrieved = graph.addContext({
@@ -238,9 +236,17 @@ export async function runAegisSwarm(
   // from untrusted context demonstrably reaches the sink.
   const shouldIsolate = carry >= 0.5
   if (!shouldIsolate) {
+    if (executed.outcome !== 'executed') {
+      graph.setStatus('executor', 'idle', `action ${executed.outcome}`)
+      graph.setPhase('failed')
+      graph.state.result = `Executor action did not complete: ${executed.outcome}.`
+      graph.event('error', 'executor', graph.state.result, executed.verdict.score)
+      publish()
+      return graph.snapshot()
+    }
     graph.setStatus('executor', 'done', 'executed')
     graph.setPhase('complete')
-    graph.state.result = `Clean context. Executor ran ${fixture.command}; no taint crossed the agent boundary.`
+    graph.state.result = `Executor ran ${fixture.command}; no isolation was triggered.`
     graph.event('complete', 'aegis', 'Swarm completed without isolation', evolved.contamination)
     publish()
     return graph.snapshot()
@@ -311,8 +317,8 @@ export async function runAegisSwarm(
     graph.setPhase('contained')
     graph.state.result =
       resolution.decidedBy === 'auto'
-        ? 'No operator response. Fail-closed: the executor stays isolated and the tainted lineage is discarded.'
-        : 'Operator kept the executor isolated. Tainted lineage discarded; the rest of the swarm is intact.'
+        ? 'No operator response. Fail-closed: the executor stays isolated; its prior context remains visible in the graph.'
+        : 'Operator kept the executor isolated; prior context remains visible in the graph.'
     graph.event('complete', 'aegis', graph.state.result, evolved.contamination)
     publish()
     return graph.snapshot()
@@ -331,7 +337,7 @@ export async function runAegisSwarm(
   graph.event(
     'resume',
     'executor',
-    `Operator confirmed containment. Tainted lineage frozen; sanitized context ${sanitized.id} granted.`,
+    `Operator confirmed containment. Replacement context ${sanitized.id} granted for the fixed safe action.`,
   )
 
   const safePending: PendingToolCall = {
@@ -349,11 +355,28 @@ export async function runAegisSwarm(
     safe.verdict.score,
   )
 
+  if (safe.outcome !== 'executed') {
+    graph.state.kernel = {
+      toolName: safePending.toolName,
+      decision: safe.decision,
+      outcome: safe.outcome,
+      score: safe.verdict.score,
+      reason: safe.reason,
+      findings: safe.verdict.findings,
+    }
+    graph.setStatus('executor', 'idle', `sanitized action ${safe.outcome}`)
+    graph.setPhase('failed')
+    graph.state.result = `Sanitized action did not complete: ${safe.outcome}.`
+    graph.event('error', 'executor', graph.state.result, safe.verdict.score)
+    publish()
+    return graph.snapshot()
+  }
+
   graph.setStatus('executor', 'done', 'sanitized resume executed')
   graph.setPhase('complete')
   graph.state.result =
-    'Operator released the executor on a sanitized context. The tainted lineage stays quarantined and attested in the ledger.'
-  graph.event('complete', 'aegis', 'Swarm resumed safely; tainted lineage discarded', 0)
+    'Operator released the executor with replacement context for the fixed safe action. Earlier context remains visible in the graph.'
+  graph.event('complete', 'aegis', 'Replacement action executed; earlier context remains in the graph', 0)
   publish()
   return graph.snapshot()
 }

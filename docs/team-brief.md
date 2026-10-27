@@ -10,9 +10,9 @@ the source of truth for decisions.
 
 ## What we built (one line)
 
-Three agents share one task. One reads a hostile page. Aegis tracks where the
-data came from, isolates only the agent that carried it, and the Chaperone
-kernel blocks the action and signs the decision.
+Three scripted roles share one task; the proposed command is fixed. One reads a
+hostile page. The kernel blocks on a canary match and Aegis isolates the executor;
+the decision is recorded in a hash-chained audit with signed checkpoints.
 
 **The sentence to remember:** *Innocent command, guilty address.*
 
@@ -36,23 +36,26 @@ asset; protect it.
 
 ## The 3-beat demo (2:50)
 
-Pre-flight: `npm run dev`, wait for `model: warm`, open `http://localhost:5174/#swarm`.
+Pre-flight: preload the model cache, enable airplane mode, run `npm run dev`, wait
+for `model: warm`, and open `http://localhost:5174/#swarm`. Complete the full
+airplane-mode drill on the venue laptop; do not guarantee offline operation.
 
 ### 1. Poison (0:00–0:50)
 Click **Launch poisoned swarm**. Point at the contamination ring and the
 highlighted top span.
 
-> "Three agents. The planner is trusted. The retriever just read a hostile
-> page. Aegis found the directive and the canary, and contamination is 75
-> percent. That highlighted span is the model's evidence."
+> "Three scripted roles and a fixed proposed command. The planner is trusted;
+> the retriever read a hostile page. The highlighted span is analysis evidence:
+> occlusion measures embedding change, not causal attribution. The fixture's
+> contamination score is about 75 percent, not an isolation verdict."
 
 ### 2. Contain (0:50–2:05)
 The executor proposes `echo ZQ7XK2M9`. Point at the red edge, the kernel card,
 then the graph.
 
-> "The command is innocent. A keyword scanner scores it zero. The kernel blocks
-> it at 56 because the value came from the page. Only the executor is frozen;
-> the planner and retriever keep their state."
+> "The command is innocent. The sentinel matches its canary to the observed page,
+> and the kernel blocks it at 56. That match, not the model score, drives
+> isolation. Only the executor is frozen; the other roles keep their state."
 
 Click **Keep isolated**. The run settles `contained`; the ledger records
 `denied_by_human`.
@@ -62,7 +65,8 @@ Click **Run clean control**.
 
 > "Same workflow, benign page: no taint, no isolation, the call executes. We're
 > not blocking everything. And the health check verifies the hash chain and the
-> signed Merkle root."
+> signed Merkle root locally. Independent verification needs a trusted key and
+> retained checkpoint; signed tokens do not independently authenticate an operator."
 
 Fallback: reload and rerun. Never use a recording.
 
@@ -72,14 +76,15 @@ Fallback: reload and rerun. Never use a recording.
 
 **"Isn't the canary just a magic string?"**
 
-> "The canary is the **witness**, not the mechanism. On stage it makes the taint
-> visible. In production the provenance edge comes from context IDs and
-> tool-call metadata, not a literal token. The decision is lineage plus the
-> kernel's semantic verdict."
+> "The canary is a **marker match** and is central to this demo's isolation.
+> The sentinel also matches exact content and token or shingle overlap between
+> observed sources and sink arguments. The graph records context lineage, but
+> this is not general information-flow tracking or a min-cut. The model supplies
+> analysis evidence; it does not cause the canary isolation decision."
 
-Then point at the benchmark: the semantic slice is 2/2. The two documented
-misses are string-splitting and hex. Do not claim semantic-only isolation —
-it is the next calibrated commit, not something we demo.
+The benchmark's semantic slice is 2/2 author-curated examples, not an independent
+evaluation. The two documented misses are string-splitting and hex. Do not claim
+semantic-only isolation or generalization.
 
 ---
 
@@ -87,16 +92,20 @@ it is the next calibrated commit, not something we demo.
 
 | Metric | Value |
 |---|---|
-| Kernel recall | 92.0% (25 positives; Wilson 95%: 75.0–97.8%) |
-| Precision / FPR | 100% / 0.0% |
+| Kernel corpus / recall | 35 author-curated cases, 25 positives / 10 benign; 92.0% recall (Wilson 95%: 75.0–97.8%) |
+| Precision / FPR | 100% / 0.0% on this set (no false positives among 10) |
 | ROC-AUC | 0.960 |
-| Semantic slice | 2/2 |
-| Latency p50 / p95 | 39 ms / 81 ms |
+| Semantic slice | 2/2 curated examples, not an independent evaluation |
+| Paired MiniLM ablation | Rules + hashing: 22/25 positives gated; with MiniLM overlay: 23/25. Neither gated any of 10 benign cases. |
+| Kernel-only latency p50 / p95 | 39 ms / 81 ms |
 | Poisoned vs clean swarm | 75% vs 25% contamination |
-| Taint carry | 85% → kernel `blocked_by_policy`, score 56 |
+| Canary match | Kernel `blocked_by_policy`, score 56; 85% carry drives isolation |
 
-Concede the small, author-curated corpus before a judge raises it. The honesty
-is part of the pitch.
+Concede the small, author-curated corpus before a judge raises it. These numbers
+do not establish generalization; swarm scores are separate fixture observations.
+The ablation reconstructs the baseline from the same live verdicts, not an independent
+evaluation or latency comparison. Re-run it with `node scripts/onnx-ablation.mjs`
+while the local model is warm.
 
 ---
 
@@ -119,8 +128,9 @@ Handoffs end with the next person's name. One clicker.
    `npm run swarm:acceptance` green before it reaches `main`.
 3. No new dependencies, no cloud APIs, no recordings.
 4. Rehearse the hold click and the clean control every run.
-5. Phrase safely: "fail-closed authorization, provenance, tamper-evident
-   audit." Avoid "sandbox," "untamperable," "100% offline."
+5. Phrase safely: "fail-closed authorization, marker/overlap matching,
+   tamper-evident audit against a trusted checkpoint." Avoid "sandbox,"
+   "untamperable," "100% offline," and independent operator authentication.
 
 ---
 
@@ -128,6 +138,7 @@ Handoffs end with the next person's name. One clicker.
 
 - Five timed rehearsals at 15:00, including Q&A.
 - Q&A drill: marker trap, MiniLM trap, "why not block all untrusted data."
-- Dress rehearsal 27 Oct on the venue laptop, offline, with backup USB.
+- Dress rehearsal 27 Oct on the venue laptop, in airplane mode with the model
+  cache preloaded and backup USB; verify the full demo and `model: warm`.
 - Export the full transcript if needed:
   `opencode export <sessionID> --sanitize > aegis-session.json` (review first).

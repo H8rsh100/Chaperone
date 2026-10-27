@@ -205,7 +205,7 @@ async function resumedRun() {
   check('run completed after resume', state?.phase === 'complete', state?.phase)
   check('executor released on sanitized context', (state?.isolated ?? []).length === 0)
   check(
-    'tainted lineage left frozen',
+    'contamination estimate after replacement context',
     state?.contamination < 30,
     `${state?.contamination}%`,
   )

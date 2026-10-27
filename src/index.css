@@ -79,6 +79,21 @@ body {
   }
 }
 
+@media (pointer: fine) and (prefers-reduced-motion: reduce) {
+  body {
+    cursor: auto;
+  }
+  body a,
+  body button,
+  body input,
+  body [role='button'] {
+    cursor: pointer;
+  }
+  body input {
+    cursor: text;
+  }
+}
+
 button {
   font: inherit;
   cursor: pointer;
