@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   SCENARIOS,
   inspect,
@@ -9,6 +9,7 @@ import {
   type Verdict,
 } from '../lib/inspect'
 import { statusOf, stampOf, type GateStatus } from '../intercept/status'
+import { localClock } from '../lib/time'
 import type { Outcome } from '../intercept/types'
 import { setFluid, triggerCollapse } from '../visual/state'
 import './Checkpoint.css'
@@ -54,6 +55,11 @@ type LivePending = {
   expiresAt?: string
   timeoutMs?: number
   decisionToken?: string
+}
+
+type LiveSnapshot = {
+  pending: LivePending[]
+  audit: Array<Record<string, unknown>>
 }
 
 type ActivityItem = {
@@ -240,7 +246,19 @@ export function Checkpoint({ onBack, onLiveLab }: Props) {
   const [activeId, setActiveId] = useState('')
   const [audit, setAudit] = useState<AuditEntry[]>([])
   const [busy, setBusy] = useState(false)
+  const [started, setStarted] = useState(false)
+  const [runError, setRunError] = useState('')
+  const [reviewResult, setReviewResult] = useState<AuditEntry | null>(null)
+  const [reviewWaiting, setReviewWaiting] = useState(false)
+  const [decisionError, setDecisionError] = useState<{ id: string; message: string } | null>(null)
+  const [deciding, setDeciding] = useState(false)
   const [now, setNow] = useState(() => Date.now())
+  const generation = useRef(0)
+  const requestNumber = useRef(0)
+  const appliedRequest = useRef(0)
+  const resetting = useRef(false)
+  const currentPending = useRef<LivePending[]>([])
+  const observedReviews = useRef(new Map<string, { createdAt: string; baseline: Set<string> }>())
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 500)
@@ -249,14 +267,15 @@ export function Checkpoint({ onBack, onLiveLab }: Props) {
 
   const activeLive = livePending.find((p) => p.call.id === activeId) ?? livePending[0]
   const activeScenario = queue.find((c) => c.id === activeId) ?? queue[0]
-  const active = mode === 'live' ? activeLive?.toolCall : activeScenario
+  const active = activeLive?.toolCall ?? (
+    mode === 'scenarios' && !reviewResult && !reviewWaiting ? activeScenario : undefined
+  )
   const verdict: Verdict | null = useMemo(() => {
-    if (mode === 'live') return activeLive?.verdict ?? null
+    if (activeLive) return activeLive.verdict
     return active ? inspect(active) : null
-  }, [mode, active, activeLive])
+  }, [active, activeLive])
 
   const isReviewLive =
-    mode === 'live' &&
     !!activeLive &&
     activeLive.verdict.recommendation === 'review' &&
     !!activeLive.expiresAt
@@ -290,50 +309,82 @@ export function Checkpoint({ onBack, onLiveLab }: Props) {
     setFluid({ mode, risk: Math.min(1, verdict.score / 100), field, surface: 'gate' })
   }, [active, verdict, isReviewLive, secondsLeft, activeLive?.timeoutMs])
 
-  const refreshLive = useCallback(async () => {
-    const res = await fetch('/api/chaperone/pending')
-    const data = (await res.json()) as {
-      pending: LivePending[]
-      audit: Array<Record<string, unknown>>
-    }
+  const applyLive = useCallback((data: LiveSnapshot, currentGeneration: number, request: number, updateAudit: boolean) => {
+    if (currentGeneration !== generation.current || request < appliedRequest.current) return
+    appliedRequest.current = request
+    currentPending.current = data.pending
     setLivePending(data.pending)
-    if (data.pending.length && !data.pending.some((p) => p.call.id === activeId)) {
-      setActiveId(data.pending[0].call.id)
+    const entries: AuditEntry[] = (data.audit ?? [])
+      .filter((a) => a.toolName && a.toolName !== '(run)')
+      .map((a, i) => ({
+        id: String(a.id ?? `a-${i}`),
+        call: {
+          id: String(a.id ?? i),
+          agent: 'live-agent',
+          tool: String(a.toolName ?? 'tool') as ToolCall['tool'],
+          summary: String(a.inputSummary ?? a.toolName),
+          payload: String(a.inputSummary ?? ''),
+          requestedAt: localClock(String(a.timestamp ?? '')),
+        },
+        decision:
+          a.finalDecision === 'deny' || a.decision === 'deny'
+            ? 'denied'
+            : 'approved',
+        at: localClock(String(a.timestamp ?? '')),
+        score: Number(a.riskScore ?? 0),
+        decidedBy: (a.decidedBy as 'auto' | 'human') ?? 'auto',
+        level: String(a.riskLevel ?? ''),
+        reason: a.reason ? String(a.reason) : undefined,
+        outcome: a.outcome ? (String(a.outcome) as Outcome) : undefined,
+        findings: Array.isArray(a.findings) ? (a.findings as Finding[]) : undefined,
+      }))
+    if (updateAudit && !resetting.current) setAudit(entries)
+
+    const baseline = new Set(entries.map((entry) => entry.id))
+    for (const pending of data.pending) {
+      if (!observedReviews.current.has(pending.call.id)) {
+        observedReviews.current.set(pending.call.id, { createdAt: pending.createdAt, baseline })
+      }
     }
-    if (data.audit?.length) {
-      setAudit(
-        data.audit
-          .filter((a) => a.toolName && a.toolName !== '(run)')
-          .map((a, i) => ({
-            id: String(a.id ?? `a-${i}`),
-            call: {
-              id: String(a.id ?? i),
-              agent: 'live-agent',
-              tool: String(a.toolName ?? 'tool') as ToolCall['tool'],
-              summary: String(a.inputSummary ?? a.toolName),
-              payload: String(a.inputSummary ?? ''),
-              requestedAt: String(a.timestamp ?? '').slice(11, 19),
-            },
-            decision:
-              a.finalDecision === 'deny' || a.decision === 'deny'
-                ? 'denied'
-                : 'approved',
-            at: String(a.timestamp ?? '').slice(11, 19),
-            score: Number(a.riskScore ?? 0),
-            decidedBy: (a.decidedBy as 'auto' | 'human') ?? 'auto',
-            level: String(a.riskLevel ?? ''),
-            reason: a.reason ? String(a.reason) : undefined,
-            outcome: a.outcome ? (String(a.outcome) as Outcome) : undefined,
-            findings: Array.isArray(a.findings) ? (a.findings as Finding[]) : undefined,
-          })),
+    let waiting = false
+    let result: AuditEntry | undefined
+    for (const [id, observed] of observedReviews.current) {
+      if (data.pending.some((pending) => pending.call.id === id)) continue
+      // Swarm holds use the call ID; tool calls append a completion timestamp.
+      const prefix = `${id}-`
+      const match = entries.find((entry) =>
+        !observed.baseline.has(entry.id) &&
+        (entry.id === id || (
+          entry.id.startsWith(prefix) && /^\d+$/.test(entry.id.slice(prefix.length)) &&
+          Number(entry.id.slice(prefix.length)) >= Date.parse(observed.createdAt)
+        )),
       )
+      if (match) {
+        if (!result || entries.indexOf(match) < entries.indexOf(result)) result = match
+        observedReviews.current.delete(id)
+      } else {
+        waiting = true
+      }
     }
-  }, [activeId])
+    setReviewWaiting(waiting)
+    if (result) setReviewResult(result)
+  }, [])
+
+  const refreshLive = useCallback(async (updateAudit: boolean) => {
+    const currentGeneration = generation.current
+    const request = ++requestNumber.current
+    try {
+      const res = await fetch('/api/chaperone/pending')
+      if (!res.ok) return
+      applyLive((await res.json()) as LiveSnapshot, currentGeneration, request, updateAudit)
+    } catch {
+      // Keep the last known holds visible until a successful refresh.
+    }
+  }, [applyLive])
 
   useEffect(() => {
-    if (mode !== 'live') return
-    void refreshLive()
-    const t = window.setInterval(() => void refreshLive(), 800)
+    void refreshLive(mode === 'live')
+    const t = window.setInterval(() => void refreshLive(mode === 'live'), 800)
     return () => window.clearInterval(t)
   }, [mode, refreshLive])
 
@@ -341,17 +392,27 @@ export function Checkpoint({ onBack, onLiveLab }: Props) {
     if (!active || !verdict) return
     if (decision === 'denied') triggerCollapse()
 
-    if (mode === 'live' && activeLive) {
-      await fetch('/api/chaperone/decide', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: activeLive.call.id,
-          decision: decision === 'approved' ? 'allow' : 'deny',
-          token: activeLive.decisionToken,
-        }),
-      })
-      await refreshLive()
+    if (activeLive) {
+      if (deciding) return
+      setDeciding(true)
+      setDecisionError(null)
+      try {
+        const response = await fetch('/api/chaperone/decide', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: activeLive.call.id,
+            decision: decision === 'approved' ? 'allow' : 'deny',
+            token: activeLive.decisionToken,
+          }),
+        })
+        if (!response.ok) throw new Error('Decision rejected')
+      } catch {
+        setDecisionError({ id: activeLive.call.id, message: 'Decision not confirmed. The review may have expired; check its current status or try again.' })
+      } finally {
+        setDeciding(false)
+      }
+      await refreshLive(mode === 'live')
       return
     }
 
@@ -379,41 +440,99 @@ export function Checkpoint({ onBack, onLiveLab }: Props) {
   }
 
   const loadScenarios = () => {
+    generation.current++
     setMode('scenarios')
+    setStarted(true)
+    setRunError('')
+    setReviewResult(null)
     setQueue(SCENARIOS)
     setActiveId(SCENARIOS[0].id)
     setAudit([])
   }
 
   const startLive = async (scenario: Scenario) => {
+    generation.current++
+    resetting.current = true
     setMode('live')
     setBusy(true)
-    setAudit([])
-    await fetch('/api/chaperone/reset', { method: 'POST' })
-    await fetch('/api/chaperone/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scenario, useLiveModel: false }),
-    })
-    setBusy(false)
-    await refreshLive()
+    setRunError('')
+    try {
+      const currentGeneration = generation.current
+      const request = ++requestNumber.current
+      const response = await fetch('/api/chaperone/pending')
+      if (!response.ok) throw new Error('Could not check for pending reviews.')
+      const current = (await response.json()) as LiveSnapshot
+      applyLive(current, currentGeneration, request, true)
+      if (current.pending.length && request < appliedRequest.current) {
+        const baseline = new Set((current.audit ?? []).map((entry) => String(entry.id ?? '')))
+        for (const pending of current.pending) {
+          if (!observedReviews.current.has(pending.call.id)) {
+            observedReviews.current.set(pending.call.id, { createdAt: pending.createdAt, baseline })
+          }
+        }
+        setReviewWaiting(true)
+        await refreshLive(true)
+      }
+      if (current.pending.length || currentPending.current.length) return
+      setStarted(true)
+      const reset = await fetch('/api/chaperone/reset?onlyIfIdle=1', { method: 'POST' })
+      if (reset.status === 409) {
+        let message = 'Cannot start a scenario while the checkpoint is active. Try again when it is idle.'
+        try {
+          const body = (await reset.json()) as { error?: unknown; message?: unknown }
+          const detail = body.error ?? body.message
+          if (typeof detail === 'string' && detail.trim()) message = detail
+        } catch {
+          // Use the conflict-specific fallback if the response has no usable message.
+        }
+        setRunError(message)
+        resetting.current = false
+        void refreshLive(true)
+        return
+      }
+      if (!reset.ok) throw new Error('Could not reset the previous scenario.')
+      // Discard polls started before the reset completed, including their audit snapshots.
+      generation.current++
+      setAudit([])
+      setReviewResult(null)
+      setReviewWaiting(false)
+      for (const id of observedReviews.current.keys()) {
+        if (!currentPending.current.some((pending) => pending.call.id === id)) {
+          observedReviews.current.delete(id)
+        }
+      }
+      resetting.current = false
+      const run = await fetch('/api/chaperone/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenario, useLiveModel: false }),
+      })
+      if (!run.ok) throw new Error('Could not start the scenario.')
+      await refreshLive(true)
+    } catch {
+      setStarted(true)
+      setRunError('Could not start the scenario. Check the server or try Offline Mode.')
+    } finally {
+      resetting.current = false
+      setBusy(false)
+    }
   }
 
   const activity: ActivityItem[] = useMemo(() => {
     const items: ActivityItem[] = []
+    for (const p of livePending) {
+      items.push({
+        id: p.call.id,
+        at: localClock(p.createdAt || ''),
+        tool: p.toolCall.tool,
+        summary: p.toolCall.summary,
+        score: p.verdict.score,
+        level: p.verdict.level,
+        status: 'pending',
+        actor: 'human',
+      })
+    }
     if (mode === 'live') {
-      for (const p of livePending) {
-        items.push({
-          id: p.call.id,
-          at: (p.createdAt || '').slice(11, 19),
-          tool: p.toolCall.tool,
-          summary: p.toolCall.summary,
-          score: p.verdict.score,
-          level: p.verdict.level,
-          status: 'pending',
-          actor: 'human',
-        })
-      }
       for (const e of audit) {
         items.push({
           id: e.id,
@@ -458,7 +577,11 @@ export function Checkpoint({ onBack, onLiveLab }: Props) {
     return items
   }, [mode, livePending, audit, queue])
 
-  const latest = audit[0]
+  const latest = !busy && !reviewWaiting && !runError
+    ? reviewResult && started && mode === 'live' && audit.some((entry) => entry.id === reviewResult.id)
+      ? audit[0]
+      : reviewResult ?? (started && !runError ? audit[0] : undefined)
+    : undefined
   const latestStatus = latest ? statusOf(latest) : null
   const latestStamp = latestStatus ? stampOf(latestStatus) : null
   const latestLevel = latest ? latest.level || inspect(latest.call).level : ''
@@ -491,13 +614,18 @@ export function Checkpoint({ onBack, onLiveLab }: Props) {
         <aside className="gate__rail gate__rail--scenarios">
           <p className="gate__rail-title">Scenarios</p>
           <p className="gate__rail-note">Send a tool call. Watch what Chaperone does.</p>
+          {livePending.length > 0 && (
+            <p className="gate__rail-hold" role="status">
+              {livePending.length} live {livePending.length === 1 ? 'review' : 'reviews'} pending. Resolve before starting a scenario.
+            </p>
+          )}
           <div className="gate__scenarios">
             {SCENARIO_META.map((s) => (
               <button
                 key={s.key}
                 type="button"
                 className={`gate__scenario gate__scenario--${s.tone}`}
-                disabled={busy}
+                disabled={busy || livePending.length > 0}
                 onClick={() => void startLive(s.key)}
               >
                 <span className={`gate__scenario-tag gate__scenario-tag--${s.tone}`}>
@@ -511,7 +639,7 @@ export function Checkpoint({ onBack, onLiveLab }: Props) {
             <button
               type="button"
               className="gate__scenario gate__scenario--all"
-              disabled={busy}
+              disabled={busy || livePending.length > 0}
               onClick={() => void startLive('all')}
             >
               <span className="gate__scenario-tag gate__scenario-tag--all">All</span>
@@ -522,6 +650,7 @@ export function Checkpoint({ onBack, onLiveLab }: Props) {
             <button
               type="button"
               className="gate__scenario gate__scenario--offline"
+              disabled={busy || livePending.length > 0}
               onClick={loadScenarios}
             >
               <span className="gate__scenario-tag gate__scenario-tag--offline">No server</span>
@@ -533,6 +662,9 @@ export function Checkpoint({ onBack, onLiveLab }: Props) {
         </aside>
 
         <main className="gate__main">
+          {runError && (active || reviewWaiting) && (
+            <p className="gate__decision-error" role="alert">{runError}</p>
+          )}
           {active && verdict ? (
             <div className="gate__card" key={active.id}>
               <span className={`gate__seal gate__seal--${verdict.level}`} aria-hidden>
@@ -623,10 +755,14 @@ export function Checkpoint({ onBack, onLiveLab }: Props) {
                 </div>
               )}
 
+              {activeLive && decisionError?.id === activeLive.call.id && (
+                <p className="gate__decision-error" role="alert">{decisionError.message}</p>
+              )}
               <div className="gate__actions">
                 <button
                   type="button"
                   className="gate__btn gate__btn--deny"
+                  disabled={deciding}
                   onClick={() => void decide('denied')}
                 >
                   Don&apos;t Allow
@@ -634,6 +770,7 @@ export function Checkpoint({ onBack, onLiveLab }: Props) {
                 <button
                   type="button"
                   className="gate__btn gate__btn--allow"
+                  disabled={deciding}
                   onClick={() => void decide('approved')}
                 >
                   Allow
@@ -736,10 +873,21 @@ export function Checkpoint({ onBack, onLiveLab }: Props) {
                   <span className="mono">{latest.reason}</span>
                 </div>
               )}
+              {mode === 'scenarios' && reviewResult && (
+                <button type="button" className="gate__btn gate__btn--allow" onClick={() => setReviewResult(null)}>
+                  Resume offline queue
+                </button>
+              )}
+            </div>
+          ) : started || busy || reviewWaiting ? (
+            <div className="gate__brief gate__brief--waiting" role="status">
+              <p className="gate__brief-kicker mono">{reviewWaiting ? 'REVIEW RESOLVED' : runError ? 'SCENARIO UNAVAILABLE' : 'SCENARIO IN PROGRESS'}</p>
+              <h2 className="gate__brief-title">{reviewWaiting ? 'Waiting for the recorded outcome.' : runError || 'Waiting for the checkpoint.'}</h2>
+              {!runError && <p className="gate__brief-sub">The actual result or a review request will appear here as soon as it is available.</p>}
             </div>
           ) : (
             <div className="gate__brief">
-              <p className="gate__brief-kicker mono">HUMAN-IN-THE-LOOP FIREWALL</p>
+              <p className="gate__brief-kicker mono">WELCOME TO KERNEL / HUMAN-IN-THE-LOOP FIREWALL</p>
               <h2 className="gate__brief-title">
                 Chaperone sits between your agent and your machine.
               </h2>
@@ -762,13 +910,13 @@ export function Checkpoint({ onBack, onLiveLab }: Props) {
                   <strong>blocked by Chaperone</strong>
                 </div>
               </div>
-              <p className="gate__brief-hint">&larr; Pick a scenario to begin.</p>
+              <p className="gate__brief-hint">Pick a scenario to begin. Live reviews appear here as soon as they need your decision.</p>
             </div>
           )}
         </main>
 
         <aside className="gate__rail gate__rail--log">
-          <p className="gate__rail-title">Interception Log</p>
+          <p className="gate__rail-title">Interception Log · Local Time</p>
           {activity.length === 0 ? (
             <p className="gate__rail-empty">Nothing intercepted yet.</p>
           ) : (

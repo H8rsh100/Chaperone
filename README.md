@@ -154,6 +154,11 @@ built-ins, and permits only the exact external commands `npm test` and
 can themselves run project code. The HTTP tool accepts HTTP(S) destinations and
 does not provide a comprehensive network isolation boundary.
 
+Starting a Kernel scenario resets the shared demo ledger and anchors when the
+server is idle. The Kernel interface refuses that reset while a review is
+pending or a Live Lab run is active; do not use the scenarios with audit data
+that must be retained.
+
 ### MCP gateway
 
 With the dev server running, `npm run mcp:demo` exercises the stdio gateway.
@@ -198,7 +203,7 @@ node scripts/onnx-ablation.mjs   # paired kernel comparison; MiniLM must be warm
 npm run mcp:demo                 # MCP gateway demonstration
 ```
 
-The latest verified run passed **115 tests across 15 files** and **23 of 23
+The latest verified run passed **122 tests across 17 files** and **23 of 23
 Live Lab acceptance checks**. These checks are regression evidence, not a
 security certification.
 

@@ -23,7 +23,7 @@ the executor; the decision is recorded in a hash-chained audit with signed check
 | Check | Result |
 |---|---|
 | `npx tsc -b` | clean |
-| `npx vitest run` | 89/89 tests, 14 files |
+| `npx vitest run` | 122/122 tests, 17 files |
 | `npm run build` | green (249 kB JS) |
 | `npm run swarm:acceptance` | 23/23 checks |
 | `npm run demo:acceptance` | all 6 kernel scenarios |

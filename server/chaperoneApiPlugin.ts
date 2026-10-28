@@ -168,6 +168,12 @@ export function chaperoneApiPlugin(): Plugin {
           }
 
           if (req.method === 'POST' && url.startsWith('/api/chaperone/reset')) {
+            if (
+              new URL(url, 'http://localhost').searchParams.get('onlyIfIdle') === '1' &&
+              (listPending().length > 0 || swarmSnapshot().running)
+            ) {
+              return send(res, 409, { error: 'Cannot reset while reviews are pending or a swarm run is active' })
+            }
             clearGate()
             resetLedger()
             resetAnchors()

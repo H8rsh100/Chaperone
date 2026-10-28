@@ -145,7 +145,7 @@ keyboard, no overlapping talk.
 
 ## Pre-stage checklist
 
-1. `npm run build` clean, `npm test` green (89 tests).
+1. `npm run build` clean, `npm test` green (122 tests).
 2. Preload the model cache; in airplane mode run `npm run dev` and wait for `/healthz` → `model: warm`.
 3. `npm run swarm:acceptance` green (23 checks).
 4. `npm run demo:acceptance` green (kernel scenarios).

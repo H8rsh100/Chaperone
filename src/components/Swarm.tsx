@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { Finding } from '../lib/inspect'
+import { localClock } from '../lib/time'
 import type { AgentId, AgentNode, SwarmEvent, SwarmState } from '../swarm/types'
 import { setFluid } from '../visual/state'
 import './Swarm.css'
@@ -86,10 +87,6 @@ const EVENT_LABEL: Record<SwarmEvent['kind'], string> = {
   resume: 'RESUME',
   complete: 'DONE',
   error: 'ERROR',
-}
-
-function clock(iso: string): string {
-  return iso.length >= 19 ? iso.slice(11, 19) : iso
 }
 
 function toneFor(value: number): 'low' | 'mid' | 'high' {
@@ -733,7 +730,7 @@ export function Swarm({ onBack, onKernel }: Props) {
               <div>
                 <p className="swarm__eyebrow mono">04 / RUN RECORD</p>
                 <p className="swarm__card-title">Event stream</p>
-                <p className="swarm__card-note">run events · decisions recorded separately in the ledger</p>
+                <p className="swarm__card-note">local time · decisions recorded separately in the ledger</p>
               </div>
               <span className="swarm__backend mono">{state?.events.length ?? '—'}</span>
             </div>
@@ -742,7 +739,7 @@ export function Swarm({ onBack, onKernel }: Props) {
                 state.events.map((event) => (
                   <div key={event.id} className={`swarm__event swarm__event--${event.kind}`}>
                     <div className="swarm__event-top">
-                      <span className="swarm__event-time mono">{clock(event.at)}</span>
+                      <span className="swarm__event-time mono">{localClock(event.at)}</span>
                       <span className={`swarm__event-kind swarm__event-kind--${event.kind} mono`}>
                         {EVENT_LABEL[event.kind]}
                       </span>
